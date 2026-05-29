@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Room Calendar — Dev</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a1a; color: #e0e0e0; padding: 24px; }
+    h1 { font-size: 16px; font-weight: 500; margin-bottom: 16px; color: #fff; }
+  </style>
+</head>
+<body>
+  <h1>Reservation Calendar</h1>
+  <room-calendar id="cal"></room-calendar>
+
+  <script type="module">
+    import { register } from './src/index.ts'
+    register()
+
+    const el = document.getElementById('cal')
+
+    const sections = [
+      {
+        id: 'villa',
+        label: 'VILLA',
+        color: '#16a34a',
+        rooms: [
+          { id: 'aev-b1', name: 'Aev B1', type: 'Villa', status: 'OC' },
+          { id: 'aev-b2', name: 'Aev B2', type: 'Villa', status: 'OC' },
+          { id: 'unalloc', name: 'Unallocated', type: 'Villa', status: 'UL' },
+        ],
+      },
+      {
+        id: '1br',
+        label: 'ONE BEDROOM',
+        color: '#1a8cd8',
+        rooms: [
+          { id: 'br101', name: 'Bedroom 101 - King', type: 'One Bedroom', status: 'OC' },
+          { id: 'dadang', name: 'boking dadang - King', type: 'One Bedroom', status: 'OC' },
+          { id: 'king1', name: 'King Bedroom - King', type: 'One Bedroom', status: 'OD' },
+          { id: 'br102', name: 'Bedroom 102', type: 'One Bedroom', status: 'VC' },
+          { id: 'br103', name: 'Bedroom 103', type: 'One Bedroom', status: 'VC' },
+        ],
+      },
+    ]
+
+    const reservations = [
+      // Villa — Aev B1
+      { id: 'r1',  roomId: 'aev-b1', guestName: 'Ahmad',    folioNumber: '1534', checkIn: '2026-05-22', checkOut: '2026-05-25', paidPercent: 0 },
+      { id: 'r2',  roomId: 'aev-b1', guestName: 'Bintang',  folioNumber: '1541', checkIn: '2026-05-27', checkOut: '2026-06-01', paidPercent: 50 },
+      { id: 'r3',  roomId: 'aev-b1', guestName: 'Citra',    folioNumber: '1548', checkIn: '2026-06-03', checkOut: '2026-06-07', paidPercent: 100 },
+      { id: 'r4',  roomId: 'aev-b1', guestName: 'Dika',     folioNumber: '1555', checkIn: '2026-06-10', checkOut: '2026-06-13', paidPercent: 25 },
+
+      // Villa — Aev B2
+      { id: 'r5',  roomId: 'aev-b2', guestName: 'Nia',      folioNumber: '1535', checkIn: '2026-05-22', checkOut: '2026-05-27', paidPercent: 100 },
+      { id: 'r6',  roomId: 'aev-b2', guestName: 'Erwin',    folioNumber: '1543', checkIn: '2026-05-29', checkOut: '2026-06-03', paidPercent: 75 },
+      { id: 'r7',  roomId: 'aev-b2', guestName: 'Fira',     folioNumber: '1556', checkIn: '2026-06-05', checkOut: '2026-06-08', paidPercent: 0 },
+      { id: 'r8',  roomId: 'aev-b2', guestName: 'Gilang',   folioNumber: '1562', checkIn: '2026-06-12', checkOut: '2026-06-19', paidPercent: 100 },
+
+      // Villa — Unallocated
+      { id: 'r9',  roomId: 'unalloc', guestName: 'Hendra',  folioNumber: '1537', checkIn: '2026-05-24', checkOut: '2026-05-28', paidPercent: 0 },
+      { id: 'r10', roomId: 'unalloc', guestName: 'Indah',   folioNumber: '1560', checkIn: '2026-06-06', checkOut: '2026-06-09', paidPercent: 50 },
+
+      // One Bedroom — 101
+      { id: 'r11', roomId: 'br101',   guestName: 'Johan',   folioNumber: '1536', checkIn: '2026-05-21', checkOut: '2026-05-24', paidPercent: 100 },
+      { id: 'r12', roomId: 'br101',   guestName: 'Kevin',   folioNumber: '1545', checkIn: '2026-05-26', checkOut: '2026-05-30', paidPercent: 0 },
+      { id: 'r13', roomId: 'br101',   guestName: 'Layla',   folioNumber: '1553', checkIn: '2026-06-02', checkOut: '2026-06-06', paidPercent: 75 },
+      { id: 'r14', roomId: 'br101',   guestName: 'Mario',   folioNumber: '1563', checkIn: '2026-06-10', checkOut: '2026-06-14', paidPercent: 100 },
+
+      // One Bedroom — dadang
+      { id: 'r15', roomId: 'dadang',  guestName: 'Nadia',   folioNumber: '1538', checkIn: '2026-05-23', checkOut: '2026-05-29', paidPercent: 50 },
+      { id: 'r16', roomId: 'dadang',  guestName: 'Oscar',   folioNumber: '1550', checkIn: '2026-06-01', checkOut: '2026-06-04', paidPercent: 100 },
+      { id: 'r17', roomId: 'dadang',  guestName: 'Putri',   folioNumber: '1558', checkIn: '2026-06-07', checkOut: '2026-06-11', paidPercent: 0 },
+      { id: 'r18', roomId: 'dadang',  guestName: 'Qori',    folioNumber: '1564', checkIn: '2026-06-14', checkOut: '2026-06-18', paidPercent: 25 },
+
+      // One Bedroom — King
+      { id: 'r19', roomId: 'king1',   guestName: 'Rina',    folioNumber: '1539', checkIn: '2026-05-22', checkOut: '2026-05-26', paidPercent: 100 },
+      { id: 'r20', roomId: 'king1',   guestName: 'Sandi',   folioNumber: '1547', checkIn: '2026-05-30', checkOut: '2026-06-05', paidPercent: 0 },
+      { id: 'r21', roomId: 'king1',   guestName: 'Tari',    folioNumber: '1557', checkIn: '2026-06-08', checkOut: '2026-06-12', paidPercent: 50 },
+
+      // One Bedroom — 102
+      { id: 'r22', roomId: 'br102',   guestName: 'Umar',    folioNumber: '1540', checkIn: '2026-05-25', checkOut: '2026-05-31', paidPercent: 75 },
+      { id: 'r23', roomId: 'br102',   guestName: 'Vina',    folioNumber: '1551', checkIn: '2026-06-02', checkOut: '2026-06-07', paidPercent: 100 },
+      { id: 'r24', roomId: 'br102',   guestName: 'Wahyu',   folioNumber: '1559', checkIn: '2026-06-11', checkOut: '2026-06-15', paidPercent: 0 },
+
+      // One Bedroom — 103
+      { id: 'r25', roomId: 'br103',   guestName: 'Xena',    folioNumber: '1542', checkIn: '2026-05-21', checkOut: '2026-05-23', paidPercent: 100 },
+      { id: 'r26', roomId: 'br103',   guestName: 'Yoga',    folioNumber: '1546', checkIn: '2026-05-27', checkOut: '2026-06-02', paidPercent: 50 },
+      { id: 'r27', roomId: 'br103',   guestName: 'Zahra',   folioNumber: '1554', checkIn: '2026-06-04', checkOut: '2026-06-09', paidPercent: 25 },
+      { id: 'r28', roomId: 'br103',   guestName: 'Arif',    folioNumber: '1561', checkIn: '2026-06-13', checkOut: '2026-06-17', paidPercent: 100 },
+    ]
+
+    const config = {
+      startDate: '2026-05-21',
+      visibleDays: 30,
+    }
+
+    el.sections = sections
+    el.reservations = reservations
+    el.config = config
+
+    el.addEventListener('reservation-clicked', (e) => {
+      console.log('clicked', e.detail)
+    })
+  </script>
+</body>
+</html>
