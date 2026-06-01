@@ -61,7 +61,9 @@
             <td
               v-for="(day, idx) in visibleDays"
               :key="day.iso"
+              :class="{ 'cell-droppable': !dragState }"
               :style="idx === 0 ? 'overflow:visible; position:relative; z-index:5;' : ''"
+              @mousedown.left="onCellMousedown($event, room, idx)"
             >
               <!-- Render booking blocks anchored to their start-day cell -->
               <template v-if="idx === 0">
@@ -69,7 +71,7 @@
                   v-for="block in roomBlocks(room.id)"
                   :key="block.id"
                   class="booking-block"
-                  :class="[`status-${block.status.toLowerCase().replace('_', '-')}`, { 'is-dragged': dragState?.blockId === block.id }]"
+                  :class="[`status-${block.status.toLowerCase().replace('_', '-')}`, { 'is-dragged': dragState?.blockId === block.id, 'is-reverting': isReverting && dragState?.blockId === block.id }]"
                   :style="{
                     left: block.left + 'px',
                     width: block.width + 'px',
@@ -117,6 +119,23 @@
                     </template>
                   </div>
                 </div>
+                <!-- New reservation preview block (active drag OR popover open) -->
+                <div
+                  v-if="((newResPreview && newResDrag?.isActive) || frozenPreview) && (newResPreview?.roomId === room.id || frozenPreview?.roomId === room.id)"
+                  class="new-res-preview"
+                  :class="{ 'is-frozen': frozenPreview && !newResPreview }"
+                  :style="{
+                    left:  ((newResPreview?.roomId === room.id ? newResPreview : frozenPreview)!.left) + 'px',
+                    width: ((newResPreview?.roomId === room.id ? newResPreview : frozenPreview)!.width) + 'px',
+                  }"
+                >
+                  <div class="new-res-inner">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                    <span>New</span>
+                  </div>
+                </div>
               </template>
             </td>
           </tr>
@@ -124,6 +143,148 @@
       </tbody>
     </table>
   </div>
+
+  <!-- New reservation drag tooltip (white) -->
+  <div v-if="newResPreview && newResDrag?.isActive" class="rc-newres-tooltip" :style="newResTooltipStyle">
+    <div class="nrt-room">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5">
+        <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+      {{ newResPreview.roomName }}
+    </div>
+    <div class="nrt-divider"></div>
+    <div class="nrt-dates">
+      <span>{{ formatDateLong(newResPreview.checkIn) }}</span>
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5">
+        <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+      </svg>
+      <span>{{ formatDateLong(newResPreview.checkOut) }}</span>
+    </div>
+    <div class="nrt-nights">{{ nightsBetween(newResPreview.checkIn, newResPreview.checkOut) }} malam</div>
+  </div>
+
+  <!-- Create reservation popover -->
+  <div v-if="newResPopover" class="rc-create-popover" :style="popoverStyle">
+    <div class="crp-header">
+      <div class="crp-title">Buat Reservasi Baru</div>
+      <div class="crp-dates">
+        {{ formatDateLong(newResPopover.checkIn) }}
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5">
+          <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+        </svg>
+        {{ formatDateLong(newResPopover.checkOut) }}
+        &nbsp;·&nbsp;{{ nightsBetween(newResPopover.checkIn, newResPopover.checkOut) }} malam
+      </div>
+    </div>
+    <div class="crp-divider"></div>
+
+    <!-- Create Room Plan -->
+    <button class="crp-item" @click="selectType('room-plan')">
+      <span class="crp-icon crp-icon--plan">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/>
+          <line x1="9" y1="21" x2="9" y2="9"/>
+        </svg>
+      </span>
+      <div class="crp-item-text">
+        <span class="crp-item-label">Create Room Plan</span>
+      </div>
+      <svg class="crp-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+      </svg>
+    </button>
+
+    <!-- Create Reservation (expandable) -->
+    <button class="crp-item" :class="{ 'is-expanded': newResPopover.showResSub }" @click="newResPopover.showResSub = !newResPopover.showResSub">
+      <span class="crp-icon crp-icon--res">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+        </svg>
+      </span>
+      <div class="crp-item-text">
+        <span class="crp-item-label">Create Reservation</span>
+      </div>
+      <svg class="crp-chevron" width="14" height="14" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" :class="{ open: newResPopover.showResSub }">
+        <path d="M2 3.5 L5 6.5 L8 3.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+
+    <!-- Sub-options -->
+    <div class="crp-sub" :class="{ 'is-visible': newResPopover.showResSub }">
+      <button class="crp-sub-item" @click="selectType('single')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+        </svg>
+        Single Reservation
+      </button>
+      <button class="crp-sub-item" @click="selectType('group')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="9" cy="8" r="3"/><circle cx="17" cy="8" r="3" opacity="0.6"/>
+          <path d="M2 20c0-3.3 3.1-6 7-6s7 2.7 7 6"/>
+          <path d="M17 14c2.5.4 5 2.4 5 6" opacity="0.6"/>
+        </svg>
+        Group Reservation
+      </button>
+    </div>
+  </div>
+
+  <!-- Move confirmation dialog -->
+  <Transition name="confirm-dialog">
+    <div v-if="pendingMove" class="rc-confirm-overlay" @mousedown.self="cancelMove">
+      <div class="rc-confirm-dialog">
+        <!-- Header -->
+        <div class="rcd-header">
+          <div class="rcd-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.2">
+              <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+            </svg>
+          </div>
+          <div>
+            <p class="rcd-title">Move Reservation?</p>
+            <p class="rcd-subtitle">Are you sure you want to move this reservation?</p>
+          </div>
+        </div>
+
+        <!-- Reservation info card -->
+        <div v-if="pendingMove" class="rcd-card">
+          <div class="rcd-guest">
+            <span class="rcd-guest-name">{{ pendingMove.snapshot.guestName }}</span>
+            <span class="rcd-folio">Folio #{{ pendingMove.snapshot.folioNumber }}</span>
+          </div>
+          <div class="rcd-divider"></div>
+          <!-- From → To rooms -->
+          <div class="rcd-move-row">
+            <div class="rcd-move-col">
+              <span class="rcd-move-label">From</span>
+              <span class="rcd-move-room">{{ roomById.get(pendingMove.from_room_id)?.name ?? pendingMove.from_room_id }}</span>
+              <span class="rcd-move-dates">{{ formatDateLong(pendingMove.snapshot.checkIn) }} → {{ formatDateLong(pendingMove.snapshot.checkOut) }}</span>
+            </div>
+            <svg class="rcd-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+            </svg>
+            <div class="rcd-move-col">
+              <span class="rcd-move-label">To</span>
+              <span class="rcd-move-room rcd-move-room--new">{{ roomById.get(pendingMove.room_id)?.name ?? pendingMove.room_id }}</span>
+              <span class="rcd-move-dates">{{ formatDateLong(pendingMove.arrival_date) }} → {{ formatDateLong(pendingMove.departure_date) }}</span>
+            </div>
+          </div>
+          <div class="rcd-divider"></div>
+          <!-- Nights + paid -->
+          <div class="rcd-meta">
+            <span class="rcd-nights">{{ nightsBetween(pendingMove.arrival_date, pendingMove.departure_date) }} nights</span>
+            <span class="rcd-paid" :class="{ 'rcd-paid--full': pendingMove.snapshot.paidPercent === 100 }">
+              Paid {{ pendingMove.snapshot.paidPercent }}%
+            </span>
+          </div>
+        </div>
+
+        <div class="rcd-actions">
+          <button class="rcd-btn rcd-btn--cancel" @click="cancelMove">Cancel</button>
+          <button class="rcd-btn rcd-btn--confirm" @click="confirmMove">Move</button>
+        </div>
+      </div>
+    </div>
+  </Transition>
 
   <!-- Tooltip -->
   <div v-if="tooltipTarget && !dragState" class="rc-tooltip" :style="tooltipStyle">
@@ -174,7 +335,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, toRef } from 'vue'
-import type { Room, RoomSection, Reservation, CalendarConfig } from '../types'
+import type { Room, RoomSection, Reservation, CalendarConfig, NewResDragState, NewResPopover } from '../types'
 import { useSections } from '../composables/useSections'
 import { useCalendarDays } from '../composables/useCalendarDays'
 import { useBlockLayout } from '../composables/useBlockLayout'
@@ -199,8 +360,9 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   'reservation-clicked': [payload: { reservation: Reservation; room: Room }]
-  'reservation-moved':  [payload: { reservationId: string; fromRoomId: string; newRoomId: string; newCheckIn: string; newCheckOut: string }]
+  'reservation-moved':  [payload: { id: string; room_id: string; arrival_date: string; departure_date: string; company_id: string; from_room_id: string }]
   'date-range-changed': [payload: { startDate: string; endDate: string }]
+  'new-reservation':    [payload: { roomId: string; checkIn: string; checkOut: string; type: 'room-plan' | 'single' | 'group' }]
 }>()
 
 const DAY_COL_W = computed(() => props.config.dayColWidth ?? 80)
@@ -212,13 +374,147 @@ watch(() => props.sections, (val) => { localSections.value = [...val] }, { deep:
 const localReservations = ref<Reservation[]>([...props.reservations])
 watch(() => props.reservations, (val) => { localReservations.value = [...val] }, { deep: true })
 
+const roomById = computed(() => {
+  const map = new Map<string, Room>()
+  for (const s of localSections.value)
+    for (const r of s.rooms) map.set(r.id, r)
+  return map
+})
+
 const { expandedSections, toggleSection } = useSections(localSections)
 const { visibleDays, weekHeaders }         = useCalendarDays(toRef(props, 'config'))
-const { dragState, onRoomRowMouseenter, onBlockMousedown } = useDragDrop(localReservations, DAY_COL_W, emit)
+const { dragState, isReverting, pendingMove, confirmMove, cancelMove, onRoomRowMouseenter, onBlockMousedown } = useDragDrop(localReservations, DAY_COL_W, emit, toRef(props, 'config'))
 const { roomBlocks, wrapRef, onScroll, stickyOffset }     = useBlockLayout(
   localReservations, dragState, toRef(props, 'config'), DAY_COL_W, ROOM_COL_W,
 )
 const { tooltipTarget, tooltipStyle, showTooltip, moveTooltip, hideTooltip } = useTooltip()
+
+// ── New reservation drag-to-create ──────────────────────────────────────────
+const newResDrag    = ref<NewResDragState | null>(null)
+const newResPopover = ref<NewResPopover | null>(null)
+
+const newResPreview = computed(() => {
+  const d = newResDrag.value
+  if (!d) return null
+  const days = visibleDays.value
+  const minIdx = Math.max(0, Math.min(d.startDayIdx, d.currentDayIdx))
+  const maxIdx = Math.min(days.length - 1, Math.max(d.startDayIdx, d.currentDayIdx))
+  return {
+    roomId:   d.roomId,
+    roomName: d.roomName,
+    left:     minIdx * DAY_COL_W.value,
+    width:    (maxIdx - minIdx + 1) * DAY_COL_W.value,
+    checkIn:  days[minIdx].iso,
+    checkOut: addDays(days[maxIdx].iso, 1),
+  }
+})
+
+// Frozen preview kept alive while popover is open
+const frozenPreview = ref<{ roomId: string; roomName: string; left: number; width: number; checkIn: string; checkOut: string } | null>(null)
+
+function blockCenterX(preview: { left: number; width: number }) {
+  const wrap = wrapRef.value
+  if (!wrap) return 0
+  const rect = wrap.getBoundingClientRect()
+  return rect.left + ROOM_COL_W.value + preview.left + preview.width / 2 - wrap.scrollLeft
+}
+
+const newResTooltipStyle = computed(() => {
+  const d = newResDrag.value
+  const preview = newResPreview.value
+  if (!d || !preview) return {}
+  return {
+    top:       (d.mouseY - 12) + 'px',
+    left:      blockCenterX(preview) + 'px',
+    transform: 'translate(-50%, -100%)',
+  }
+})
+
+const popoverStyle = computed(() => {
+  const p = newResPopover.value
+  const preview = frozenPreview.value
+  if (!p || !preview) return {}
+  return {
+    top:       (p.y - 8) + 'px',
+    left:      blockCenterX(preview) + 'px',
+    transform: 'translate(-50%, -100%)',
+  }
+})
+
+function onCellMousedown(event: MouseEvent, room: Room, dayIdx: number) {
+  if (dragState.value) return
+  closePopover()
+  event.preventDefault()
+
+  const startClientX = event.clientX
+  newResDrag.value = {
+    roomId: room.id, roomName: room.name,
+    startDayIdx: dayIdx, currentDayIdx: dayIdx,
+    startClientX,
+    mouseX: event.clientX, mouseY: event.clientY,
+    isActive: false,
+  }
+
+  let hasDragged = false
+
+  function onMousemove(e: MouseEvent) {
+    if (!newResDrag.value) return
+    const totalDeltaPx = e.clientX - startClientX
+    if (!hasDragged && Math.abs(totalDeltaPx) < 6) return
+    hasDragged = true
+    if (newResDrag.value) newResDrag.value.isActive = true
+    const deltaIdx = Math.round(totalDeltaPx / DAY_COL_W.value)
+    newResDrag.value.currentDayIdx = Math.max(0, Math.min(visibleDays.value.length - 1, dayIdx + deltaIdx))
+  }
+
+  function onMouseup() {
+    document.removeEventListener('mousemove', onMousemove)
+    document.removeEventListener('mouseup',   onMouseup)
+    if (!hasDragged) {
+      newResDrag.value = null
+      return
+    }
+    const preview = newResPreview.value
+    if (preview) {
+      frozenPreview.value = { ...preview }
+      newResPopover.value = {
+        x: 0,
+        y: event.clientY,
+        roomId:   preview.roomId,
+        roomName: preview.roomName,
+        checkIn:  preview.checkIn,
+        checkOut: preview.checkOut,
+        showResSub: false,
+      }
+      // close on next outside click
+      requestAnimationFrame(() => {
+        document.addEventListener('mousedown', onOutsideClick)
+      })
+    }
+    newResDrag.value = null
+  }
+
+  document.addEventListener('mousemove', onMousemove)
+  document.addEventListener('mouseup',   onMouseup)
+}
+
+function onOutsideClick(e: MouseEvent) {
+  const el = (e.target as HTMLElement).closest?.('.rc-create-popover')
+  if (!el) closePopover()
+}
+
+function closePopover() {
+  newResPopover.value  = null
+  frozenPreview.value  = null
+  document.removeEventListener('mousedown', onOutsideClick)
+}
+
+function selectType(type: 'room-plan' | 'single' | 'group') {
+  const p = newResPopover.value
+  if (!p) return
+  emit('new-reservation', { roomId: p.roomId, checkIn: p.checkIn, checkOut: p.checkOut, type })
+  closePopover()
+}
 
 defineExpose({
   goToDate(iso: string) {
@@ -403,6 +699,10 @@ defineExpose({
   box-shadow: 0 4px 16px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.08);
   z-index: 20;
 }
+.booking-block.is-reverting {
+  transition: left 220ms cubic-bezier(0.23, 1, 0.32, 1), opacity 0.15s;
+  cursor: default;
+}
 
 /* Suppress hover on non-dragged blocks while a drag is active */
 .cal-table.is-dragging .booking-block:not(.is-dragged) {
@@ -478,9 +778,262 @@ defineExpose({
 .tt-paid-txt { font-size: 10px; color: #f59e0b; white-space: nowrap; }
 .tt-paid-txt.full { color: #16a34a; }
 
+
+/* New reservation preview block */
+.new-res-preview {
+  position: absolute;
+  top: 5px; bottom: 5px;
+  border-radius: 4px;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1.5px dashed #6366f1;
+  z-index: 3;
+  pointer-events: none;
+  animation: newres-fade-in 0.08s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.new-res-preview.is-frozen {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.4);
+}
+.new-res-inner {
+  position: absolute;
+  top: 0; bottom: 0; left: 8px;
+  display: flex; align-items: center; gap: 5px;
+  color: #6366f1; font-size: 10px; font-weight: 600;
+  white-space: nowrap;
+}
+@keyframes newres-fade-in {
+  from { opacity: 0; transform: scaleY(0.88); }
+  to   { opacity: 1; transform: scaleY(1); }
+}
+
+/* New reservation drag tooltip (white) */
+.rc-newres-tooltip {
+  position: fixed;
+  z-index: 9999;
+  min-width: 190px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 9px;
+  padding: 10px 13px;
+  pointer-events: none;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06);
+  font-size: 11px;
+  color: #555;
+  animation: tt-fade 0.12s ease-out;
+}
+@keyframes tt-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.nrt-room {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 700; color: #1a1a1a;
+  letter-spacing: 0.01em;
+}
+.nrt-divider { height: 1px; background: #ebebeb; margin: 7px 0; }
+.nrt-dates {
+  display: flex; align-items: center; gap: 5px;
+  color: #374151; font-size: 11px;
+}
+.nrt-nights { margin-top: 3px; color: #9ca3af; font-size: 10px; }
+
+/* Create reservation popover */
+.rc-create-popover {
+  position: fixed;
+  z-index: 9999;
+  width: 220px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 4px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.06);
+  animation: pop-fade 0.15s ease-out;
+}
+@keyframes pop-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.crp-header { padding: 8px 10px 6px; }
+.crp-title {
+  font-size: 12px; font-weight: 700; color: #111827;
+  letter-spacing: 0.01em;
+}
+.crp-dates {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 10px; color: #9ca3af; margin-top: 2px;
+  flex-wrap: wrap;
+}
+.crp-divider { height: 1px; background: #f3f4f6; margin: 2px 0; }
+.crp-item {
+  display: flex; align-items: center; gap: 9px;
+  width: 100%; padding: 8px 10px;
+  background: none; border: none; border-radius: 8px;
+  cursor: pointer; text-align: left;
+  transition: background 0.1s;
+}
+@media (hover: hover) and (pointer: fine) {
+  .crp-item:hover { background: #f9fafb; }
+}
+.crp-item:active { background: #f3f4f6; transform: scale(0.98); }
+.crp-icon {
+  width: 28px; height: 28px; border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.crp-icon--plan { background: #f0f9ff; color: #0284c7; }
+.crp-icon--res  { background: #f0fdf4; color: #16a34a; }
+.crp-item-text { flex: 1; }
+.crp-item-label { font-size: 12px; font-weight: 600; color: #111827; }
+.crp-arrow { color: #d1d5db; flex-shrink: 0; }
+.crp-chevron {
+  color: #9ca3af; flex-shrink: 0;
+  transition: transform 0.18s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.crp-chevron.open { transform: rotate(180deg); }
+
+/* Sub-options (expand animation) */
+.crp-sub {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.22s cubic-bezier(0.23, 1, 0.32, 1),
+              opacity    0.18s cubic-bezier(0.23, 1, 0.32, 1);
+  opacity: 0;
+}
+.crp-sub.is-visible { max-height: 120px; opacity: 1; }
+.crp-sub-item {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 7px 10px 7px 20px;
+  background: none; border: none; border-radius: 7px;
+  cursor: pointer; text-align: left;
+  font-size: 11px; font-weight: 500; color: #374151;
+  transition: background 0.1s;
+}
+@media (hover: hover) and (pointer: fine) {
+  .crp-sub-item:hover { background: #f9fafb; }
+}
+.crp-sub-item:active { background: #f3f4f6; transform: scale(0.98); }
+.crp-sub-item svg { color: #9ca3af; flex-shrink: 0; }
+
 /* Scrollbar */
 .cal-wrap::-webkit-scrollbar { width: 6px; height: 6px; }
 .cal-wrap::-webkit-scrollbar-track { background: #f9fafb; }
 .cal-wrap::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
 .cal-wrap::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* Move confirmation dialog */
+.rc-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(2px);
+}
+.rc-confirm-dialog {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 22px 24px 20px;
+  width: 380px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.14), 0 4px 16px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.rcd-header {
+  display: flex; align-items: flex-start; gap: 14px;
+}
+.rcd-icon {
+  width: 44px; height: 44px; flex-shrink: 0;
+  border-radius: 11px;
+  background: #fef3c7;
+  display: flex; align-items: center; justify-content: center;
+}
+.rcd-title {
+  font-size: 15px; font-weight: 700; color: #111827;
+  letter-spacing: 0.01em; margin-bottom: 3px;
+}
+.rcd-subtitle { font-size: 12.5px; color: #6b7280; line-height: 1.4; }
+
+/* Info card */
+.rcd-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 11px;
+  padding: 13px 15px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.rcd-guest { display: flex; align-items: baseline; gap: 8px; }
+.rcd-guest-name { font-size: 14px; font-weight: 700; color: #111827; }
+.rcd-folio { font-size: 11px; color: #9ca3af; }
+.rcd-divider { height: 1px; background: #e5e7eb; }
+.rcd-move-row {
+  display: flex; align-items: center; gap: 10px;
+}
+.rcd-move-col {
+  flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0;
+}
+.rcd-move-label {
+  font-size: 10px; font-weight: 600; color: #9ca3af;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.rcd-move-room {
+  font-size: 12.5px; font-weight: 600; color: #374151;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.rcd-move-room--new { color: #d97706; }
+.rcd-move-dates { font-size: 10.5px; color: #9ca3af; white-space: nowrap; }
+.rcd-arrow { flex-shrink: 0; }
+.rcd-meta { display: flex; justify-content: space-between; align-items: center; }
+.rcd-nights { font-size: 11px; color: #6b7280; }
+.rcd-paid { font-size: 11px; color: #f59e0b; font-weight: 600; }
+.rcd-paid--full { color: #16a34a; }
+
+.rcd-actions {
+  display: flex; gap: 9px; justify-content: flex-end;
+}
+.rcd-btn {
+  padding: 9px 20px;
+  border-radius: 9px;
+  font-size: 13px; font-weight: 600;
+  border: none; cursor: pointer;
+  transition: background 0.1s, transform 0.1s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.rcd-btn:active { transform: scale(0.97); }
+.rcd-btn--cancel { background: #f3f4f6; color: #374151; }
+@media (hover: hover) and (pointer: fine) {
+  .rcd-btn--cancel:hover { background: #e5e7eb; }
+}
+.rcd-btn--confirm { background: #d97706; color: #ffffff; }
+@media (hover: hover) and (pointer: fine) {
+  .rcd-btn--confirm:hover { background: #b45309; }
+}
+
+/* Dialog enter/leave transitions */
+.confirm-dialog-enter-active {
+  transition: opacity 0.18s ease-out;
+}
+.confirm-dialog-leave-active {
+  transition: opacity 0.14s ease-in;
+}
+.confirm-dialog-enter-from,
+.confirm-dialog-leave-to {
+  opacity: 0;
+}
+.confirm-dialog-enter-active .rc-confirm-dialog {
+  transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.18s ease-out;
+}
+.confirm-dialog-leave-active .rc-confirm-dialog {
+  transition: transform 0.14s ease-in, opacity 0.14s ease-in;
+}
+.confirm-dialog-enter-from .rc-confirm-dialog {
+  transform: scale(0.95) translateY(6px);
+  opacity: 0;
+}
+.confirm-dialog-leave-to .rc-confirm-dialog {
+  transform: scale(0.97);
+  opacity: 0;
+}
 </style>

@@ -23,6 +23,7 @@
     el.config = {
       startDate: '2026-05-21',
       visibleDays: 30,
+      companyId: 'bf32c930-8bfd-11e9-8291-9f143c8ac640',
     }
 
     // --- Room charting API response (room-charting endpoint) ---
@@ -129,8 +130,114 @@
           guest_profile_name: ' IKetutGedeWiryaJaya ', guest_profile: ' IKetutGedeWiryaJaya ',
           total: 0, total_paid: 0, is_cancelled: 1,
         },
+        // --- additional dummy reservations ---
+        {
+          id: 'aa001000-0000-0000-0000-000000000001', reservation_id: 'aa001100-0000-0000-0000-000000000001',
+          arrival_date: '2026-05-24', departure_date: '2026-05-27', status: 'CHECK_IN', resv_status: 'DEFINITE',
+          room_id: '493d3490-8c11-11e9-86ec-c984ac90e273', folio_no: 1540,
+          guest_profile_name: 'Siti Rahayu', guest_profile: 'Siti Rahayu',
+          total: 4500000, total_paid: 4500000, is_cancelled: 0,
+        },
+        {
+          id: 'aa001000-0000-0000-0000-000000000002', reservation_id: 'aa001100-0000-0000-0000-000000000002',
+          arrival_date: '2026-05-26', departure_date: '2026-05-30', status: 'RESERVATION', resv_status: 'DEFINITE',
+          room_id: '3da1ebd0-8c12-11e9-8d83-d77a8199a29e', folio_no: 1541,
+          guest_profile_name: 'Budi Santoso', guest_profile: 'Budi Santoso',
+          total: 7200000, total_paid: 3600000, is_cancelled: 0,
+        },
+        {
+          id: 'aa001000-0000-0000-0000-000000000003', reservation_id: 'aa001100-0000-0000-0000-000000000003',
+          arrival_date: '2026-05-21', departure_date: '2026-05-25', status: 'CHECK_IN', resv_status: 'DEFINITE',
+          room_id: 'b15f7ca0-8c12-11e9-886d-8998b5c2319c', folio_no: 1542,
+          guest_profile_name: 'Mr John Smith', guest_profile: 'Mr John Smith',
+          total: 9600000, total_paid: 9600000, is_cancelled: 0,
+        },
+        {
+          id: 'aa001000-0000-0000-0000-000000000004', reservation_id: 'aa001100-0000-0000-0000-000000000004',
+          arrival_date: '2026-05-29', departure_date: '2026-06-02', status: 'RESERVATION', resv_status: 'DEFINITE',
+          room_id: 'dd8a5b70-8c12-11e9-952a-39bac7daf865', folio_no: 1543,
+          guest_profile_name: 'Dewi Lestari', guest_profile: 'Dewi Lestari',
+          total: 8800000, total_paid: 0, is_cancelled: 0,
+        },
+        {
+          id: 'aa001000-0000-0000-0000-000000000005', reservation_id: 'aa001100-0000-0000-0000-000000000005',
+          arrival_date: '2026-05-22', departure_date: '2026-05-24', status: 'CHECK_IN', resv_status: 'DEFINITE',
+          room_id: '8d93f130-dd2a-11ea-a28a-4728b750b216', folio_no: 1544,
+          guest_profile_name: 'Ahmad Fauzi', guest_profile: 'Ahmad Fauzi',
+          total: 5500000, total_paid: 5500000, is_cancelled: 0,
+        },
+        {
+          id: 'aa001000-0000-0000-0000-000000000006', reservation_id: 'aa001100-0000-0000-0000-000000000006',
+          arrival_date: '2026-05-25', departure_date: '2026-05-28', status: 'RESERVATION', resv_status: 'DEFINITE',
+          room_id: 'e87e6ca0-dd2a-11ea-87fe-8707ce1e786a', folio_no: 1545,
+          guest_profile_name: 'Ms Clara Ng', guest_profile: 'Ms Clara Ng',
+          total: 6600000, total_paid: 3300000, is_cancelled: 0,
+        },
+        {
+          id: 'aa001000-0000-0000-0000-000000000007', reservation_id: 'aa001100-0000-0000-0000-000000000007',
+          arrival_date: '2026-06-01', departure_date: '2026-06-05', status: 'RESERVATION', resv_status: 'DEFINITE',
+          room_id: '04e6abb0-954d-11ec-aa72-9b4182c8ec6d', folio_no: 1546,
+          guest_profile_name: 'Rudi Hartono', guest_profile: 'Rudi Hartono',
+          total: 12000000, total_paid: 6000000, is_cancelled: 0,
+        },
+        {
+          id: 'aa001000-0000-0000-0000-000000000008', reservation_id: 'aa001100-0000-0000-0000-000000000008',
+          arrival_date: '2026-05-23', departure_date: '2026-05-26', status: 'CHECK_IN', resv_status: 'DEFINITE',
+          room_id: 'c99cc6b0-8d83-11ed-a2de-7f195846d924', folio_no: 1547,
+          guest_profile_name: 'Yuna Park', guest_profile: 'Yuna Park',
+          total: 7500000, total_paid: 7500000, is_cancelled: 0,
+        },
+        {
+          id: 'aa001000-0000-0000-0000-000000000009', reservation_id: 'aa001100-0000-0000-0000-000000000009',
+          arrival_date: '2026-05-27', departure_date: '2026-06-01', status: 'RESERVATION', resv_status: 'DEFINITE',
+          room_id: '2f002ea0-fe1c-11ef-8b9d-5d4f6c92079a', folio_no: 1548,
+          guest_profile_name: 'Hendra Wijaya', guest_profile: 'Hendra Wijaya',
+          total: 11000000, total_paid: 5000000, is_cancelled: 0,
+        },
+        {
+          id: 'aa001000-0000-0000-0000-000000000010', reservation_id: 'aa001100-0000-0000-0000-000000000010',
+          arrival_date: '2026-05-21', departure_date: '2026-05-22', status: 'CHECK_OUT', resv_status: 'DEFINITE',
+          room_id: '1cd80fd0-22e4-11ef-ae50-1d9e3aafc102', folio_no: 1549,
+          guest_profile_name: 'Tika Permata', guest_profile: 'Tika Permata',
+          total: 2200000, total_paid: 2200000, is_cancelled: 0,
+        },
+        {
+          id: 'aa001000-0000-0000-0000-000000000011', reservation_id: 'aa001100-0000-0000-0000-000000000011',
+          arrival_date: '2026-05-30', departure_date: '2026-06-03', status: 'RESERVATION', resv_status: 'DEFINITE',
+          room_id: '1efa6d70-ffd9-11ef-80e8-f9caa27eed3f', folio_no: 1550,
+          guest_profile_name: 'Mr Robert Chen', guest_profile: 'Mr Robert Chen',
+          total: 9200000, total_paid: 9200000, is_cancelled: 0,
+        },
+        {
+          id: 'aa001000-0000-0000-0000-000000000012', reservation_id: 'aa001100-0000-0000-0000-000000000012',
+          arrival_date: '2026-05-24', departure_date: '2026-05-29', status: 'CHECK_IN', resv_status: 'DEFINITE',
+          room_id: '5b979080-b511-11ee-a983-35b620d2524d', folio_no: 1551,
+          guest_profile_name: 'Andi Pratama', guest_profile: 'Andi Pratama',
+          total: 15000000, total_paid: 10000000, is_cancelled: 0,
+        },
+        {
+          id: 'aa001000-0000-0000-0000-000000000013', reservation_id: 'aa001100-0000-0000-0000-000000000013',
+          arrival_date: '2026-05-22', departure_date: '2026-05-25', status: 'CHECK_IN', resv_status: 'DEFINITE',
+          room_id: '3c540050-b512-11ee-941b-4d87f44b7724', folio_no: 1552,
+          guest_profile_name: 'Ms Sarah Johnson', guest_profile: 'Ms Sarah Johnson',
+          total: 9000000, total_paid: 9000000, is_cancelled: 0,
+        },
+        {
+          id: 'aa001000-0000-0000-0000-000000000014', reservation_id: 'aa001100-0000-0000-0000-000000000014',
+          arrival_date: '2026-06-02', departure_date: '2026-06-07', status: 'RESERVATION', resv_status: 'TENTATIVE',
+          room_id: 'cffd1540-57c7-11ec-a4d0-7ba520f40094', folio_no: 1553,
+          guest_profile_name: 'Wayan Suardana', guest_profile: 'Wayan Suardana',
+          total: 7700000, total_paid: 0, is_cancelled: 0,
+        },
+        {
+          id: 'aa001000-0000-0000-0000-000000000015', reservation_id: 'aa001100-0000-0000-0000-000000000015',
+          arrival_date: '2026-05-26', departure_date: '2026-05-28', status: 'CHECK_IN', resv_status: 'DEFINITE',
+          room_id: 'b4d8a630-21d3-11f1-99cf-99fde08fed29', folio_no: 1554,
+          guest_profile_name: 'Komang Ayu', guest_profile: 'Komang Ayu',
+          total: 4400000, total_paid: 4400000, is_cancelled: 0,
+        },
       ],
-      total: 5,
+      total: 20,
     }
 
     // Call the two public API methods
@@ -139,6 +246,18 @@
 
     el.addEventListener('reservation-clicked', (e) => {
       console.log('clicked', e.detail)
+    })
+
+    // reservation-moved fires after every successful drag-drop.
+    // e.detail is the ready-to-use body for move_reservation-v2.
+    el.addEventListener('reservation-moved', (e) => {
+      console.log('move_reservation-v2 body:', e.detail)
+      // In GuestPro PMS:
+      // fetch('/api/move_reservation-v2', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(e.detail),
+      // })
     })
 
     el.addEventListener('date-range-changed', (e) => {

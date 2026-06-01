@@ -39,6 +39,8 @@ export interface CalendarConfig {
   roomColWidth?: number
   /** Pixel width of each day column (default 80) */
   dayColWidth?: number
+  /** Included in the reservation-moved event payload for move_reservation-v2 API */
+  companyId?: string
 }
 
 export interface BlockLayout extends Reservation {
@@ -67,14 +69,47 @@ export interface RoomDroppedPayload {
 }
 
 export interface ReservationMovedPayload {
-  reservationId: string
-  fromRoomId: string
-  newRoomId: string
-  newCheckIn: string
-  newCheckOut: string
+  /** move_reservation-v2 API body */
+  id: string
+  room_id: string
+  arrival_date: string
+  departure_date: string
+  company_id: string
+  /** original room before the move */
+  from_room_id: string
 }
 
 export interface DateRangeChangedPayload {
   startDate: string
   endDate: string
+}
+
+export interface NewReservationPayload {
+  roomId: string
+  /** ISO YYYY-MM-DD — inclusive check-in */
+  checkIn: string
+  /** ISO YYYY-MM-DD — exclusive check-out */
+  checkOut: string
+  type: 'room-plan' | 'single' | 'group'
+}
+
+export interface NewResDragState {
+  roomId: string
+  roomName: string
+  startDayIdx: number
+  currentDayIdx: number
+  startClientX: number
+  mouseX: number
+  mouseY: number
+  isActive: boolean
+}
+
+export interface NewResPopover {
+  x: number
+  y: number
+  roomId: string
+  roomName: string
+  checkIn: string
+  checkOut: string
+  showResSub: boolean
 }

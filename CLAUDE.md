@@ -51,6 +51,12 @@ Blocks are anchored to the **first visible day column** (`idx === 0`) of each ro
 ### Public API (`defineExpose`)
 `goToDate(iso)`, `goToToday()` — both fire `date-range-changed`; the caller is responsible for updating `config.startDate`.
 
+## Language Rules
+
+- **All content in this project must be in English** — no exceptions.
+- This applies to: source code, comments, variable names, commit messages, UI text (labels, tooltips, placeholders, error messages), documentation, and this file.
+- If a user message or requirement is written in another language, interpret it and implement the solution in English.
+
 ## Design Engineering
 
 When working on UI/CSS/animations in this project, apply Emil Kowalski's design engineering philosophy:
