@@ -6,8 +6,8 @@
   <title>Room Calendar — Dev</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a1a; color: #e0e0e0; padding: 24px; }
-    h1 { font-size: 16px; font-weight: 500; margin-bottom: 16px; color: #fff; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8f9fa; color: #1a1a1a; padding: 24px; }
+    h1 { font-size: 16px; font-weight: 500; margin-bottom: 16px; color: #111; }
   </style>
 </head>
 <body>
@@ -20,88 +20,130 @@
 
     const el = document.getElementById('cal')
 
-    const sections = [
-      {
-        id: 'villa',
-        label: 'VILLA',
-        color: '#16a34a',
-        rooms: [
-          { id: 'aev-b1', name: 'Aev B1', type: 'Villa', status: 'OC' },
-          { id: 'aev-b2', name: 'Aev B2', type: 'Villa', status: 'OC' },
-          { id: 'unalloc', name: 'Unallocated', type: 'Villa', status: 'UL' },
-        ],
-      },
-      {
-        id: '1br',
-        label: 'ONE BEDROOM',
-        color: '#1a8cd8',
-        rooms: [
-          { id: 'br101', name: 'Bedroom 101 - King', type: 'One Bedroom', status: 'OC' },
-          { id: 'dadang', name: 'boking dadang - King', type: 'One Bedroom', status: 'OC' },
-          { id: 'king1', name: 'King Bedroom - King', type: 'One Bedroom', status: 'OD' },
-          { id: 'br102', name: 'Bedroom 102', type: 'One Bedroom', status: 'VC' },
-          { id: 'br103', name: 'Bedroom 103', type: 'One Bedroom', status: 'VC' },
-        ],
-      },
-    ]
-
-    const reservations = [
-      // Villa — Aev B1
-      { id: 'r1',  roomId: 'aev-b1', guestName: 'Ahmad',    folioNumber: '1534', checkIn: '2026-05-22', checkOut: '2026-05-25', paidPercent: 0 },
-      { id: 'r2',  roomId: 'aev-b1', guestName: 'Bintang',  folioNumber: '1541', checkIn: '2026-05-27', checkOut: '2026-06-01', paidPercent: 50 },
-      { id: 'r3',  roomId: 'aev-b1', guestName: 'Citra',    folioNumber: '1548', checkIn: '2026-06-03', checkOut: '2026-06-07', paidPercent: 100 },
-      { id: 'r4',  roomId: 'aev-b1', guestName: 'Dika',     folioNumber: '1555', checkIn: '2026-06-10', checkOut: '2026-06-13', paidPercent: 25 },
-
-      // Villa — Aev B2
-      { id: 'r5',  roomId: 'aev-b2', guestName: 'Nia',      folioNumber: '1535', checkIn: '2026-05-22', checkOut: '2026-05-27', paidPercent: 100 },
-      { id: 'r6',  roomId: 'aev-b2', guestName: 'Erwin',    folioNumber: '1543', checkIn: '2026-05-29', checkOut: '2026-06-03', paidPercent: 75 },
-      { id: 'r7',  roomId: 'aev-b2', guestName: 'Fira',     folioNumber: '1556', checkIn: '2026-06-05', checkOut: '2026-06-08', paidPercent: 0 },
-      { id: 'r8',  roomId: 'aev-b2', guestName: 'Gilang',   folioNumber: '1562', checkIn: '2026-06-12', checkOut: '2026-06-19', paidPercent: 100 },
-
-      // Villa — Unallocated
-      { id: 'r9',  roomId: 'unalloc', guestName: 'Hendra',  folioNumber: '1537', checkIn: '2026-05-24', checkOut: '2026-05-28', paidPercent: 0 },
-      { id: 'r10', roomId: 'unalloc', guestName: 'Indah',   folioNumber: '1560', checkIn: '2026-06-06', checkOut: '2026-06-09', paidPercent: 50 },
-
-      // One Bedroom — 101
-      { id: 'r11', roomId: 'br101',   guestName: 'Johan',   folioNumber: '1536', checkIn: '2026-05-21', checkOut: '2026-05-24', paidPercent: 100 },
-      { id: 'r12', roomId: 'br101',   guestName: 'Kevin',   folioNumber: '1545', checkIn: '2026-05-26', checkOut: '2026-05-30', paidPercent: 0 },
-      { id: 'r13', roomId: 'br101',   guestName: 'Layla',   folioNumber: '1553', checkIn: '2026-06-02', checkOut: '2026-06-06', paidPercent: 75 },
-      { id: 'r14', roomId: 'br101',   guestName: 'Mario',   folioNumber: '1563', checkIn: '2026-06-10', checkOut: '2026-06-14', paidPercent: 100 },
-
-      // One Bedroom — dadang
-      { id: 'r15', roomId: 'dadang',  guestName: 'Nadia',   folioNumber: '1538', checkIn: '2026-05-23', checkOut: '2026-05-29', paidPercent: 50 },
-      { id: 'r16', roomId: 'dadang',  guestName: 'Oscar',   folioNumber: '1550', checkIn: '2026-06-01', checkOut: '2026-06-04', paidPercent: 100 },
-      { id: 'r17', roomId: 'dadang',  guestName: 'Putri',   folioNumber: '1558', checkIn: '2026-06-07', checkOut: '2026-06-11', paidPercent: 0 },
-      { id: 'r18', roomId: 'dadang',  guestName: 'Qori',    folioNumber: '1564', checkIn: '2026-06-14', checkOut: '2026-06-18', paidPercent: 25 },
-
-      // One Bedroom — King
-      { id: 'r19', roomId: 'king1',   guestName: 'Rina',    folioNumber: '1539', checkIn: '2026-05-22', checkOut: '2026-05-26', paidPercent: 100 },
-      { id: 'r20', roomId: 'king1',   guestName: 'Sandi',   folioNumber: '1547', checkIn: '2026-05-30', checkOut: '2026-06-05', paidPercent: 0 },
-      { id: 'r21', roomId: 'king1',   guestName: 'Tari',    folioNumber: '1557', checkIn: '2026-06-08', checkOut: '2026-06-12', paidPercent: 50 },
-
-      // One Bedroom — 102
-      { id: 'r22', roomId: 'br102',   guestName: 'Umar',    folioNumber: '1540', checkIn: '2026-05-25', checkOut: '2026-05-31', paidPercent: 75 },
-      { id: 'r23', roomId: 'br102',   guestName: 'Vina',    folioNumber: '1551', checkIn: '2026-06-02', checkOut: '2026-06-07', paidPercent: 100 },
-      { id: 'r24', roomId: 'br102',   guestName: 'Wahyu',   folioNumber: '1559', checkIn: '2026-06-11', checkOut: '2026-06-15', paidPercent: 0 },
-
-      // One Bedroom — 103
-      { id: 'r25', roomId: 'br103',   guestName: 'Xena',    folioNumber: '1542', checkIn: '2026-05-21', checkOut: '2026-05-23', paidPercent: 100 },
-      { id: 'r26', roomId: 'br103',   guestName: 'Yoga',    folioNumber: '1546', checkIn: '2026-05-27', checkOut: '2026-06-02', paidPercent: 50 },
-      { id: 'r27', roomId: 'br103',   guestName: 'Zahra',   folioNumber: '1554', checkIn: '2026-06-04', checkOut: '2026-06-09', paidPercent: 25 },
-      { id: 'r28', roomId: 'br103',   guestName: 'Arif',    folioNumber: '1561', checkIn: '2026-06-13', checkOut: '2026-06-17', paidPercent: 100 },
-    ]
-
-    const config = {
+    el.config = {
       startDate: '2026-05-21',
       visibleDays: 30,
     }
 
-    el.sections = sections
-    el.reservations = reservations
-    el.config = config
+    // --- Room charting API response (room-charting endpoint) ---
+    const roomCharting = [
+      { id: '493d3490-8c11-11e9-86ec-c984ac90e273', name: '101',           room_status: 'OC',  room_type_name: 'Deluxe',               room_status_name: 'Occupied Clean',           color: '#ffffff', background_color: '#3f9e29', position_calender: 1,     room_type_position_order: 2, bed_type_name: 'Single' },
+      { id: '5334c080-8c11-11e9-9bea-1f347025ec4a', name: '102',           room_status: 'OD',  room_type_name: 'Deluxe',               room_status_name: 'Occupied Dirty',           color: '#ffffff', background_color: '#e2da34', position_calender: 2,     room_type_position_order: 2, bed_type_name: 'Single' },
+      { id: '3da1ebd0-8c12-11e9-8d83-d77a8199a29e', name: '103',           room_status: 'OD',  room_type_name: 'Deluxe',               room_status_name: 'Occupied Dirty',           color: '#ffffff', background_color: '#e2da34', position_calender: 3,     room_type_position_order: 2, bed_type_name: 'Single' },
+      { id: '4b507cd0-8c12-11e9-a47a-978688f68d74', name: '104',           room_status: 'OD',  room_type_name: 'Deluxe',               room_status_name: 'Occupied Dirty',           color: '#ffffff', background_color: '#e2da34', position_calender: 4,     room_type_position_order: 2, bed_type_name: 'Single' },
+      { id: '56bf31e0-ea3b-11e9-9533-bf2b425533eb', name: '105',           room_status: 'OD',  room_type_name: 'Deluxe',               room_status_name: 'Occupied Dirty',           color: '#ffffff', background_color: '#e2da34', position_calender: 6,     room_type_position_order: 2, bed_type_name: 'Single' },
+      { id: 'e8813a40-8bfe-11e9-94b7-3dc69d29376e', name: 'Unallocated',   room_status: 'UL',  room_type_name: 'Deluxe',               room_status_name: 'Unallocated',              color: '#000000', background_color: '#C5C5C5', position_calender: 10000, room_type_position_order: 2, bed_type_name: '' },
+
+      { id: 'b15f7ca0-8c12-11e9-886d-8998b5c2319c', name: '201',           room_status: 'OD',  room_type_name: 'Superior Double',      room_status_name: 'Occupied Dirty',           color: '#ffffff', background_color: '#e2da34', position_calender: 11,    room_type_position_order: 1, bed_type_name: 'King' },
+      { id: 'b7b670d0-8c12-11e9-95bb-71d73d6ab2e8', name: '202',           room_status: 'VD',  room_type_name: 'Superior Double',      room_status_name: 'Vacant Dirty',             color: '#ffffff', background_color: '#f05050', position_calender: 12,    room_type_position_order: 1, bed_type_name: 'King' },
+      { id: 'bd932d40-8c12-11e9-aea3-575de2399051', name: '203',           room_status: 'VD',  room_type_name: 'Superior Double',      room_status_name: 'Vacant Dirty',             color: '#ffffff', background_color: '#f05050', position_calender: 13,    room_type_position_order: 1, bed_type_name: 'King' },
+      { id: 'aca64fd0-e687-11e9-b46c-031c069a93b9', name: 'Virtual Room',  room_status: 'VCI', room_type_name: 'Superior Double',      room_status_name: 'Vacant Clean Inspected',   color: '#ffffff', background_color: '#2a5a9e', position_calender: 13,    room_type_position_order: 1, bed_type_name: null },
+      { id: 'c276eeb0-8c12-11e9-9dca-2b2e7873fea9', name: '204',           room_status: 'VD',  room_type_name: 'Superior Double',      room_status_name: 'Vacant Dirty',             color: '#ffffff', background_color: '#f05050', position_calender: 14,    room_type_position_order: 1, bed_type_name: 'King' },
+      { id: 'dd8a5b70-8c12-11e9-952a-39bac7daf865', name: '207',           room_status: 'OC',  room_type_name: 'Superior Double',      room_status_name: 'Occupied Clean',           color: '#ffffff', background_color: '#3f9e29', position_calender: 17,    room_type_position_order: 1, bed_type_name: 'King' },
+      { id: 'e2db4f50-8c12-11e9-908b-e9246cc51293', name: '208',           room_status: 'VC',  room_type_name: 'Superior Double',      room_status_name: 'Vacant Clean',             color: '#ffffff', background_color: '#41dff4', position_calender: 18,    room_type_position_order: 1, bed_type_name: 'King' },
+      { id: '49066b70-c646-11e9-b086-1f64622a6098', name: 'Unallocated',   room_status: 'UL',  room_type_name: 'Superior Double',      room_status_name: 'Unallocated',              color: '#000000', background_color: '#C5C5C5', position_calender: 10000, room_type_position_order: 1, bed_type_name: '' },
+
+      { id: '8d93f130-dd2a-11ea-a28a-4728b750b216', name: '301',           room_status: 'OD',  room_type_name: 'Suite',                room_status_name: 'Occupied Dirty',           color: '#ffffff', background_color: '#e2da34', position_calender: 19,    room_type_position_order: 3, bed_type_name: 'Double' },
+      { id: 'e87e6ca0-dd2a-11ea-87fe-8707ce1e786a', name: 'Jepun',         room_status: 'VC',  room_type_name: 'Suite',                room_status_name: 'Vacant Clean',             color: '#ffffff', background_color: '#41dff4', position_calender: 20,    room_type_position_order: 3, bed_type_name: 'Double' },
+      { id: '04e6abb0-954d-11ec-aa72-9b4182c8ec6d', name: '303',           room_status: 'VD',  room_type_name: 'Suite',                room_status_name: 'Vacant Dirty',             color: '#ffffff', background_color: '#f05050', position_calender: 21,    room_type_position_order: 3, bed_type_name: 'Double' },
+      { id: '0d62f1c0-954d-11ec-bc56-17421b80c186', name: '304',           room_status: 'VC',  room_type_name: 'Suite',                room_status_name: 'Vacant Clean',             color: '#ffffff', background_color: '#41dff4', position_calender: 22,    room_type_position_order: 3, bed_type_name: 'Double' },
+      { id: '15aff5e0-954d-11ec-bd31-b7c4aa9b200e', name: '305',           room_status: 'OD',  room_type_name: 'Suite',                room_status_name: 'Occupied Dirty',           color: '#ffffff', background_color: '#e2da34', position_calender: 23,    room_type_position_order: 3, bed_type_name: 'Double' },
+      { id: '2247fee0-dd2a-11ea-932b-2199fd9e1dda', name: 'Unallocated',   room_status: 'UL',  room_type_name: 'Suite',                room_status_name: 'Unallocated',              color: '#000000', background_color: '#C5C5C5', position_calender: 10000, room_type_position_order: 3, bed_type_name: '' },
+
+      { id: 'c99cc6b0-8d83-11ed-a2de-7f195846d924', name: '3BR Villa',     room_status: 'VC',  room_type_name: 'Virtual Room',         room_status_name: 'Vacant Clean',             color: '#ffffff', background_color: '#41dff4', position_calender: 1,     room_type_position_order: 4, bed_type_name: null },
+      { id: 'd5671f60-8d83-11ed-8d98-f3f26edeca35', name: 'Virtual room 2',room_status: 'VCI', room_type_name: 'Virtual Room',         room_status_name: 'Vacant Clean Inspected',   color: '#ffffff', background_color: '#2a5a9e', position_calender: 2,     room_type_position_order: 4, bed_type_name: null },
+      { id: 'e5d1f6a0-8d83-11ed-a32c-c14830a0724d', name: 'Virtual room 3',room_status: 'VCI', room_type_name: 'Virtual Room',         room_status_name: 'Vacant Clean Inspected',   color: '#ffffff', background_color: '#2a5a9e', position_calender: 3,     room_type_position_order: 4, bed_type_name: null },
+      { id: '901318f0-ffdc-11ef-a581-fbebff950133', name: 'book',           room_status: 'OD',  room_type_name: 'Virtual Room',         room_status_name: 'Occupied Dirty',           color: '#ffffff', background_color: '#e2da34', position_calender: 23,    room_type_position_order: 4, bed_type_name: 'King' },
+      { id: 'a3f25ce0-8d83-11ed-bd6f-972baaa45b0f', name: 'Unallocated',   room_status: 'UL',  room_type_name: 'Virtual Room',         room_status_name: 'Unallocated',              color: '#000000', background_color: '#C5C5C5', position_calender: 10000, room_type_position_order: 4, bed_type_name: '' },
+
+      { id: '198df9d0-d380-11f0-96d0-d9f98375a026', name: 'Aev B1',        room_status: 'OD',  room_type_name: 'Villa',                room_status_name: 'Occupied Dirty',           color: '#ffffff', background_color: '#e2da34', position_calender: 1,     room_type_position_order: 0, bed_type_name: null },
+      { id: '2b829ec0-d380-11f0-8eda-7db1d416472d', name: 'Aev B2',        room_status: 'OD',  room_type_name: 'Villa',                room_status_name: 'Occupied Dirty',           color: '#ffffff', background_color: '#e2da34', position_calender: 2,     room_type_position_order: 0, bed_type_name: null },
+      { id: '493ecfc0-d380-11f0-8e6e-275f37c4fbf7', name: 'Unallocated',   room_status: 'UL',  room_type_name: 'Villa',                room_status_name: 'Unallocated',              color: '#000000', background_color: '#C5C5C5', position_calender: 10000, room_type_position_order: 0, bed_type_name: '' },
+
+      { id: '2f002ea0-fe1c-11ef-8b9d-5d4f6c92079a', name: 'King Bedroom',  room_status: 'OD',  room_type_name: 'One Bedroom',          room_status_name: 'Occupied Dirty',           color: '#ffffff', background_color: '#e2da34', position_calender: 1,     room_type_position_order: 0, bed_type_name: 'King' },
+      { id: '96af2780-ffd4-11ef-b415-935c24cb37b8', name: 'boking dadang', room_status: 'OD',  room_type_name: 'One Bedroom',          room_status_name: 'Occupied Dirty',           color: '#ffffff', background_color: '#e2da34', position_calender: 1,     room_type_position_order: 0, bed_type_name: 'King' },
+      { id: '1cd80fd0-22e4-11ef-ae50-1d9e3aafc102', name: 'Bedroom 101',   room_status: 'OD',  room_type_name: 'One Bedroom',          room_status_name: 'Occupied Dirty',           color: '#ffffff', background_color: '#e2da34', position_calender: 1,     room_type_position_order: 0, bed_type_name: 'King' },
+      { id: '31459880-22e4-11ef-a9a3-f125e36e5c32', name: 'Bedroom 102',   room_status: 'VC',  room_type_name: 'One Bedroom',          room_status_name: 'Vacant Clean',             color: '#ffffff', background_color: '#41dff4', position_calender: 2,     room_type_position_order: 0, bed_type_name: null },
+      { id: '3b05a6d0-22e4-11ef-a6cc-6d2dca6af137', name: 'Bedroom 103',   room_status: 'VC',  room_type_name: 'One Bedroom',          room_status_name: 'Vacant Clean',             color: '#ffffff', background_color: '#41dff4', position_calender: 3,     room_type_position_order: 0, bed_type_name: null },
+      { id: '0e0b39e0-22e4-11ef-a567-a501e9ee3076', name: 'Unallocated',   room_status: 'UL',  room_type_name: 'One Bedroom',          room_status_name: 'Unallocated',              color: '#000000', background_color: '#C5C5C5', position_calender: 10000, room_type_position_order: 0, bed_type_name: '' },
+
+      { id: '1efa6d70-ffd9-11ef-80e8-f9caa27eed3f', name: 'SUDAH DI BOOK', room_status: 'VC',  room_type_name: 'King Double',          room_status_name: 'Vacant Clean',             color: '#ffffff', background_color: '#41dff4', position_calender: 1,     room_type_position_order: 0, bed_type_name: 'Single' },
+      { id: '21a4ef30-6057-11ef-86d3-a3e5c7a7cc17', name: 'Kolam Renang',  room_status: 'OD',  room_type_name: 'King Double',          room_status_name: 'Occupied Dirty',           color: '#ffffff', background_color: '#e2da34', position_calender: 21,    room_type_position_order: 0, bed_type_name: 'Double' },
+      { id: '08248930-6057-11ef-98a2-47d9bf72c0b5', name: 'Unallocated',   room_status: 'UL',  room_type_name: 'King Double',          room_status_name: 'Unallocated',              color: '#000000', background_color: '#C5C5C5', position_calender: 10000, room_type_position_order: 0, bed_type_name: '' },
+
+      { id: 'b4d8a630-21d3-11f1-99cf-99fde08fed29', name: 'Room 202',      room_status: 'VC',  room_type_name: 'Family Room',          room_status_name: 'Vacant Clean',             color: '#ffffff', background_color: '#41dff4', position_calender: 1,     room_type_position_order: 0, bed_type_name: 'Double' },
+      { id: 'b0117fc0-5a15-11ef-9bbe-41a57db1d47e', name: 'OTG 001',       room_status: 'VD',  room_type_name: 'Family Room',          room_status_name: 'Vacant Dirty',             color: '#ffffff', background_color: '#f05050', position_calender: 20,    room_type_position_order: 0, bed_type_name: 'Double' },
+      { id: '7a7f17e0-5a15-11ef-9721-df0c65a8d0d9', name: 'Unallocated',   room_status: 'UL',  room_type_name: 'Family Room',          room_status_name: 'Unallocated',              color: '#000000', background_color: '#C5C5C5', position_calender: 10000, room_type_position_order: 0, bed_type_name: '' },
+
+      { id: '5b979080-b511-11ee-a983-35b620d2524d', name: 'Prime Room 1',  room_status: 'OD',  room_type_name: 'Prime Room',           room_status_name: 'Occupied Dirty',           color: '#ffffff', background_color: '#e2da34', position_calender: 101,   room_type_position_order: 0, bed_type_name: 'Double' },
+      { id: '3c540050-b512-11ee-941b-4d87f44b7724', name: 'Prime Room 2',  room_status: 'OD',  room_type_name: 'Prime Room',           room_status_name: 'Occupied Dirty',           color: '#ffffff', background_color: '#e2da34', position_calender: 102,   room_type_position_order: 0, bed_type_name: 'Double' },
+      { id: '5079c160-b512-11ee-986e-fbb7bc4e2337', name: 'Prime Room 3',  room_status: 'VD',  room_type_name: 'Prime Room',           room_status_name: 'Vacant Dirty',             color: '#ffffff', background_color: '#f05050', position_calender: 103,   room_type_position_order: 0, bed_type_name: 'Double' },
+      { id: '1dadf1b0-0536-11f0-a574-e11d9dcb5785', name: 'ber',           room_status: 'OD',  room_type_name: 'Prime Room',           room_status_name: 'Occupied Dirty',           color: '#ffffff', background_color: '#e2da34', position_calender: 5,     room_type_position_order: 0, bed_type_name: null },
+      { id: '29c602c0-b510-11ee-bb6b-c5582eeea8e7', name: 'Unallocated',   room_status: 'UL',  room_type_name: 'Prime Room',           room_status_name: 'Unallocated',              color: '#000000', background_color: '#C5C5C5', position_calender: 10000, room_type_position_order: 0, bed_type_name: '' },
+
+      { id: 'cffd1540-57c7-11ec-a4d0-7ba520f40094', name: 'Soka',          room_status: 'VD',  room_type_name: 'Supertior Twin',       room_status_name: 'Vacant Dirty',             color: '#ffffff', background_color: '#f05050', position_calender: 6,     room_type_position_order: 0, bed_type_name: 'Double' },
+      { id: '6df2b730-fc10-11f0-a2c1-79aa7f424275', name: 'Unallocated',   room_status: 'UL',  room_type_name: 'Supertior Twin',       room_status_name: 'Unallocated',              color: '#000000', background_color: '#C5C5C5', position_calender: 10000, room_type_position_order: 0, bed_type_name: '' },
+
+      { id: 'f92549e0-0492-11f0-b32c-c122511cfef9', name: 'ppp',           room_status: 'VD',  room_type_name: 'Superior Double',      room_status_name: 'Vacant Dirty',             color: '#ffffff', background_color: '#f05050', position_calender: 3,     room_type_position_order: 1, bed_type_name: null },
+
+      { id: '227c3500-66c4-11ef-a735-754a0edf20fe', name: 'Paket',         room_status: 'VD',  room_type_name: 'Rafting/Biro Per Orang', room_status_name: 'Vacant Dirty',           color: '#ffffff', background_color: '#f05050', position_calender: 50,    room_type_position_order: 0, bed_type_name: 'King' },
+      { id: 'bc64a090-66c3-11ef-8dac-2b7a7be27307', name: 'Unallocated',   room_status: 'UL',  room_type_name: 'Rafting/Biro Per Orang', room_status_name: 'Unallocated',            color: '#000000', background_color: '#C5C5C5', position_calender: 10000, room_type_position_order: 0, bed_type_name: '' },
+    ]
+
+    // --- search_reservation API response ---
+    const reservationResponse = {
+      current_page: 1,
+      data: [
+        {
+          id: '4f4784a0-5596-11f1-a34d-d3923a0131b2', reservation_id: '4f2bf920-5596-11f1-a36c-29d26fae3ea9',
+          arrival_date: '2026-05-22', departure_date: '2026-05-23', status: 'CHECK_IN', resv_status: 'DEFINITE',
+          room_id: '5334c080-8c11-11e9-9bea-1f347025ec4a', folio_no: 1531,
+          guest_profile_name: 'Mr Dewa Campign', guest_profile: 'Mr Dewa Campign',
+          total: 6763000, total_paid: 6400000, is_cancelled: 0,
+        },
+        {
+          id: '7b98bc20-58e0-11f1-b7d2-11f08491cb62', reservation_id: '7b755d30-58e0-11f1-aaa6-c15a9ead465b',
+          arrival_date: '2026-05-22', departure_date: '2026-05-25', status: 'CHECK_IN', resv_status: 'DEFINITE',
+          room_id: '2b829ec0-d380-11f0-8eda-7db1d416472d', folio_no: 1535,
+          guest_profile_name: ' Nia ', guest_profile: ' Nia ',
+          total: 10500000, total_paid: 10500000, is_cancelled: 0,
+        },
+        {
+          id: '7bf01b30-58ac-11f1-b400-51e21804e656', reservation_id: '7bdbad10-58ac-11f1-9057-178722034e05',
+          arrival_date: '2026-05-22', departure_date: '2026-05-24', status: 'CHECK_IN', resv_status: 'DEFINITE',
+          room_id: '198df9d0-d380-11f0-96d0-d9f98375a026', folio_no: 1534,
+          guest_profile_name: ' A ', guest_profile: ' A ',
+          total: 3800000, total_paid: 0, is_cancelled: 0,
+        },
+        {
+          id: '95e21660-55a6-11f1-bfc8-3d06bb90cee4', reservation_id: '95c61e60-55a6-11f1-9f46-451fdc4b62a7',
+          arrival_date: '2026-05-22', departure_date: '2026-05-23', status: 'CHECK_IN', resv_status: 'DEFINITE',
+          room_id: '56bf31e0-ea3b-11e9-9533-bf2b425533eb', folio_no: 1532,
+          guest_profile_name: 'Mr Dewa Guest Journey', guest_profile: 'Mr Dewa Guest Journey',
+          total: 6380000, total_paid: 0, is_cancelled: 0,
+        },
+        {
+          id: '3b46f920-57e4-11f1-9b71-d5aeb3080e47', reservation_id: '3b2097b0-57e4-11f1-af12-f36cdba0c029',
+          arrival_date: '2026-05-28', departure_date: '2026-05-29', status: 'CANCELLED', resv_status: 'DEFINITE',
+          room_id: 'aca64fd0-e687-11e9-b46c-031c069a93b9', folio_no: 1533,
+          guest_profile_name: ' IKetutGedeWiryaJaya ', guest_profile: ' IKetutGedeWiryaJaya ',
+          total: 0, total_paid: 0, is_cancelled: 1,
+        },
+      ],
+      total: 5,
+    }
+
+    // Call the two public API methods
+    el.setData(roomCharting)
+    el.loadReservation(reservationResponse)
 
     el.addEventListener('reservation-clicked', (e) => {
       console.log('clicked', e.detail)
+    })
+
+    el.addEventListener('date-range-changed', (e) => {
+      console.log('date-range-changed', e.detail)
+      el.config = { ...el.config, startDate: e.detail.startDate }
     })
   </script>
 </body>

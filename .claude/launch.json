@@ -5,7 +5,13 @@
       "name": "room-calendar-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 5173
+      "port": 5175
+    },
+    {
+      "name": "reservation-calendar-html",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "..", "--listen", "5174", "--no-clipboard"],
+      "port": 5174
     }
   ]
 }

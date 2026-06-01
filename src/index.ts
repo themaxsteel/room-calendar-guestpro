@@ -16,5 +16,12 @@ export type {
   CalendarConfig,
   ReservationClickedPayload,
   RoomDroppedPayload,
+  ReservationMovedPayload,
   DateRangeChangedPayload,
 } from './types'
+
+export type {
+  GuestProChartingRoom,
+  GuestProReservationItem,
+  GuestProReservationResponse,
+} from './composables/useGuestProAdapter'

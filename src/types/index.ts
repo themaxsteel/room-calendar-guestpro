@@ -1,4 +1,6 @@
-export type RoomStatus = 'OC' | 'VC' | 'OD' | 'UL'
+export type RoomStatus = 'OC' | 'VC' | 'OD' | 'UL' | 'VCI' | 'VD'
+
+export type ReservationStatus = 'CHECK-IN' | 'CHECK-OUT' | 'DEFINITE' | 'BOOKED' | 'ROOM_MAINTENANCE'
 
 export interface Room {
   id: string
@@ -25,6 +27,7 @@ export interface Reservation {
   checkOut: string
   /** 0–100 */
   paidPercent: number
+  status: ReservationStatus
 }
 
 export interface CalendarConfig {
@@ -38,6 +41,19 @@ export interface CalendarConfig {
   dayColWidth?: number
 }
 
+export interface BlockLayout extends Reservation {
+  left: number
+  width: number
+}
+
+export interface DragState {
+  blockId: string
+  roomId: string
+  targetRoomId: string
+  startX: number
+  deltaDays: number
+}
+
 export interface ReservationClickedPayload {
   reservation: Reservation
   room: Room
@@ -48,6 +64,14 @@ export interface RoomDroppedPayload {
   fromRoomId: string
   toRoomId: string
   newCheckIn: string
+}
+
+export interface ReservationMovedPayload {
+  reservationId: string
+  fromRoomId: string
+  newRoomId: string
+  newCheckIn: string
+  newCheckOut: string
 }
 
 export interface DateRangeChangedPayload {
