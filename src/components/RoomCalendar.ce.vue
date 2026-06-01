@@ -48,7 +48,7 @@
           >
             <td class="room-cell col-room">
               <div class="room-row-info">
-                <span class="room-avatar" :class="`av-${room.status.toLowerCase()}`">
+                <span v-if="filterShowRoomStatus" class="room-avatar" :class="`av-${room.status.toLowerCase()}`">
                   {{ room.status }}
                 </span>
                 <div>
@@ -335,7 +335,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, toRef } from 'vue'
-import type { Room, RoomSection, Reservation, CalendarConfig, NewResDragState, NewResPopover } from '../types'
+import type { Room, RoomSection, Reservation, CalendarConfig, CalendarFilter, NewResDragState, NewResPopover } from '../types'
 import { useSections } from '../composables/useSections'
 import { useCalendarDays } from '../composables/useCalendarDays'
 import { useBlockLayout } from '../composables/useBlockLayout'
@@ -366,7 +366,12 @@ const emit = defineEmits<{
 }>()
 
 const DAY_COL_W = computed(() => props.config.dayColWidth ?? 80)
-const ROOM_COL_W = computed(() => props.config.roomColWidth ?? 170)
+
+// Filter overrides (set via setFilter())
+const filterRoomColW      = ref<number | null>(null)
+const filterShowRoomStatus = ref(true)
+
+const ROOM_COL_W = computed(() => filterRoomColW.value ?? props.config.roomColWidth ?? 170)
 
 const localSections = ref<RoomSection[]>([...props.sections])
 watch(() => props.sections, (val) => { localSections.value = [...val] }, { deep: true })
@@ -528,6 +533,14 @@ defineExpose({
   },
   loadReservation(data: GuestProReservationItem[] | GuestProReservationResponse) {
     localReservations.value = transformReservations(data)
+  },
+  setFilter(filter: CalendarFilter) {
+    if (filter.roomColWidth !== undefined) filterRoomColW.value = filter.roomColWidth
+    if (filter.showRoomStatus !== undefined) filterShowRoomStatus.value = filter.showRoomStatus
+    if (filter.startDate !== undefined) {
+      const end = filter.endDate ?? addDays(filter.startDate, props.config.visibleDays - 1)
+      emit('date-range-changed', { startDate: filter.startDate, endDate: end })
+    }
   },
 })
 </script>

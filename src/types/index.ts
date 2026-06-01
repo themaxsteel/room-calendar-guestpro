@@ -84,6 +84,16 @@ export interface DateRangeChangedPayload {
   endDate: string
 }
 
+export interface CalendarFilter {
+  /** Override room column width in pixels */
+  roomColWidth?: number
+  /** Jump to a new visible date range (ISO YYYY-MM-DD) */
+  startDate?: string
+  endDate?: string
+  /** Show or hide the room status badge (OC / VC / etc.) */
+  showRoomStatus?: boolean
+}
+
 export interface NewReservationPayload {
   roomId: string
   /** ISO YYYY-MM-DD — inclusive check-in */

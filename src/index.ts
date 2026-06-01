@@ -14,6 +14,7 @@ export type {
   RoomSection,
   Reservation,
   CalendarConfig,
+  CalendarFilter,
   ReservationClickedPayload,
   RoomDroppedPayload,
   ReservationMovedPayload,
