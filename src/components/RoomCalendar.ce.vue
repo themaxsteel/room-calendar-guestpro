@@ -24,9 +24,9 @@
         </tr>
       </thead>
       <tbody>
-        <template v-for="section in localSections" :key="section.id">
+        <template v-for="section in displaySections" :key="section.id">
           <!-- Section header -->
-          <tr class="section-row" @click="toggleSection(section.id)">
+          <tr v-if="filterCalendarType === 'by-room-type'" class="section-row" @click="toggleSection(section.id)">
             <td class="section-first" :style="{ boxShadow: 'inset 3px 0 0 ' + section.color }">
               <span class="section-chevron" :class="{ 'is-open': expandedSections[section.id] }">
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -40,19 +40,36 @@
           </tr>
           <!-- Room rows -->
           <tr
-            v-for="room in section.rooms"
-            v-show="expandedSections[section.id]"
+            v-for="(room, roomIdx) in section.rooms"
+            v-show="filterCalendarType === 'normal' || expandedSections[section.id]"
             :key="room.id"
-            :class="{ 'drop-target': dragState !== null && dragState.targetRoomId === room.id && dragState.roomId !== room.id }"
+            :class="{
+              'drop-target':     dragState !== null && dragState.targetRoomId === room.id && dragState.roomId !== room.id,
+              'row-is-dragged':  rowDragState?.roomId === room.id,
+              'row-drop-above':  rowDragState !== null && rowDragState.toIdx === roomIdx && rowDragState.fromIdx !== roomIdx,
+            }"
             @mouseenter="onRoomRowMouseenter(room.id)"
           >
-            <td class="room-cell col-room">
+            <td
+              class="room-cell col-room"
+              :class="{ 'room-cell--draggable': filterCalendarType === 'normal' }"
+              @mousedown.left.stop="onRoomCellMousedown($event, room.id, roomIdx)"
+            >
               <div class="room-row-info">
+                <span v-if="filterCalendarType === 'normal'" class="room-drag-handle" aria-hidden="true">
+                  <svg width="10" height="14" viewBox="0 0 10 14" fill="none">
+                    <circle cx="3" cy="3" r="1.2" fill="currentColor"/><circle cx="7" cy="3" r="1.2" fill="currentColor"/>
+                    <circle cx="3" cy="7" r="1.2" fill="currentColor"/><circle cx="7" cy="7" r="1.2" fill="currentColor"/>
+                    <circle cx="3" cy="11" r="1.2" fill="currentColor"/><circle cx="7" cy="11" r="1.2" fill="currentColor"/>
+                  </svg>
+                </span>
                 <span v-if="filterShowRoomStatus" class="room-avatar" :class="`av-${room.status.toLowerCase()}`">
                   {{ room.status }}
                 </span>
                 <div>
-                  <div class="room-name">{{ room.name }}</div>
+                  <div class="room-name">
+                    {{ room.name }}<span v-if="filterShowBedName && room.bedName" class="room-bed-name"> · {{ room.bedName }}</span>
+                  </div>
                   <div class="room-type">{{ room.type }}</div>
                 </div>
               </div>
@@ -112,9 +129,10 @@
                         <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
                       </svg>
                       <div class="b-texts">
-                        <span class="b-name">{{ block.guestName }}</span>
-                        <span class="b-folio">Folio #{{ block.folioNumber }}</span>
-                        <span class="b-paid">Paid {{ block.paidPercent }}%</span>
+                        <span class="b-name">{{ filterCalendarLabel === 'folio' ? 'Folio #' + block.folioNumber : block.guestName }}</span>
+                        <span v-if="filterCalendarLabel === 'guest-name'" class="b-folio">Folio #{{ block.folioNumber }}</span>
+                        <span v-if="filterShowTotalBalance && block.totalBalance != null" class="b-balance">{{ formatBalance(block.totalBalance) }}</span>
+                        <span v-else class="b-paid">Paid {{ block.paidPercent }}%</span>
                       </div>
                     </template>
                   </div>
@@ -287,7 +305,7 @@
   </Transition>
 
   <!-- Tooltip -->
-  <div v-if="tooltipTarget && !dragState" class="rc-tooltip" :style="tooltipStyle">
+  <div v-if="tooltipTarget && !dragState && filterShowReservationDetail" class="rc-tooltip" :style="tooltipStyle">
     <div class="tt-guest">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <circle cx="12" cy="8" r="4"/>
@@ -368,13 +386,100 @@ const emit = defineEmits<{
 const DAY_COL_W = computed(() => props.config.dayColWidth ?? 80)
 
 // Filter overrides (set via setFilter())
-const filterRoomColW      = ref<number | null>(null)
-const filterShowRoomStatus = ref(true)
+const filterRoomColW            = ref<number | null>(null)
+const filterShowRoomStatus      = ref(true)
+const filterCalendarType        = ref<'by-room-type' | 'normal'>('by-room-type')
+const filterRoomOrder           = ref<string[] | null>(null)
+const filterShowUnallocated     = ref(true)
+const filterShowTotalBalance    = ref(false)
+const filterShowBedName         = ref(false)
+const filterShowReservationDetail = ref(true)
+const filterCalendarLabel       = ref<'guest-name' | 'folio'>('guest-name')
 
 const ROOM_COL_W = computed(() => filterRoomColW.value ?? props.config.roomColWidth ?? 170)
 
 const localSections = ref<RoomSection[]>([...props.sections])
+
 watch(() => props.sections, (val) => { localSections.value = [...val] }, { deep: true })
+
+// ── Display sections (respects calendarType, roomOrder, showUnallocated) ──────
+const allRoomsFlat = computed(() => {
+  const rooms: Room[] = []
+  for (const s of localSections.value) rooms.push(...s.rooms)
+  return rooms
+})
+
+const orderedRooms = computed(() => {
+  const order = filterRoomOrder.value
+  const all = allRoomsFlat.value
+  if (!order) return all
+  const map = new Map(all.map(r => [r.id, r]))
+  const result: Room[] = []
+  for (const id of order) { const r = map.get(id); if (r) result.push(r) }
+  const inOrder = new Set(order)
+  for (const r of all) if (!inOrder.has(r.id)) result.push(r)
+  return result
+})
+
+const displaySections = computed((): RoomSection[] => {
+  const reservedRooms = filterShowUnallocated.value
+    ? null
+    : new Set(localReservations.value.map(r => r.roomId))
+
+  if (filterCalendarType.value === 'normal') {
+    const rooms = reservedRooms
+      ? orderedRooms.value.filter(r => reservedRooms.has(r.id))
+      : orderedRooms.value
+    return [{ id: '__all__', label: 'All Rooms', color: '#6366f1', rooms }]
+  }
+
+  return localSections.value.map(s => ({
+    ...s,
+    rooms: reservedRooms ? s.rooms.filter(r => reservedRooms.has(r.id)) : s.rooms,
+  })).filter(s => s.rooms.length > 0)
+})
+
+// ── Row drag-to-reorder (normal mode only) ────────────────────────────────────
+const rowDragState = ref<{ roomId: string; fromIdx: number; toIdx: number } | null>(null)
+
+function onRoomCellMousedown(event: MouseEvent, roomId: string, roomIdx: number) {
+  if (filterCalendarType.value !== 'normal') return
+  if (dragState.value) return
+  event.stopPropagation()
+  event.preventDefault()
+
+  const startY = event.clientY
+  const snapshotIds = displaySections.value[0]?.rooms.map(r => r.id) ?? []
+  const totalRooms = snapshotIds.length
+  rowDragState.value = { roomId, fromIdx: roomIdx, toIdx: roomIdx }
+
+  function onMousemove(e: MouseEvent) {
+    if (!rowDragState.value) return
+    const delta = e.clientY - startY
+    const newIdx = Math.max(0, Math.min(totalRooms - 1, roomIdx + Math.round(delta / 48)))
+    rowDragState.value = { ...rowDragState.value, toIdx: newIdx }
+  }
+
+  function onMouseup() {
+    document.removeEventListener('mousemove', onMousemove)
+    document.removeEventListener('mouseup', onMouseup)
+    const state = rowDragState.value
+    rowDragState.value = null
+    if (!state || state.fromIdx === state.toIdx) return
+    const ids = [...snapshotIds]
+    const [moved] = ids.splice(state.fromIdx, 1)
+    ids.splice(state.toIdx, 0, moved)
+    filterRoomOrder.value = ids
+  }
+
+  document.addEventListener('mousemove', onMousemove)
+  document.addEventListener('mouseup', onMouseup)
+}
+
+function formatBalance(amount: number): string {
+  if (amount === 0) return '0'
+  return (amount > 0 ? '+' : '') + amount.toLocaleString('en-US')
+}
 
 const localReservations = ref<Reservation[]>([...props.reservations])
 watch(() => props.reservations, (val) => { localReservations.value = [...val] }, { deep: true })
@@ -535,8 +640,15 @@ defineExpose({
     localReservations.value = transformReservations(data)
   },
   setFilter(filter: CalendarFilter) {
-    if (filter.roomColWidth !== undefined) filterRoomColW.value = filter.roomColWidth
-    if (filter.showRoomStatus !== undefined) filterShowRoomStatus.value = filter.showRoomStatus
+    if (filter.roomColWidth          !== undefined) filterRoomColW.value             = filter.roomColWidth
+    if (filter.showRoomStatus        !== undefined) filterShowRoomStatus.value       = filter.showRoomStatus
+    if (filter.calendarType          !== undefined) filterCalendarType.value         = filter.calendarType
+    if (filter.roomOrder             !== undefined) filterRoomOrder.value            = filter.roomOrder
+    if (filter.showUnallocated       !== undefined) filterShowUnallocated.value      = filter.showUnallocated
+    if (filter.showTotalBalance      !== undefined) filterShowTotalBalance.value     = filter.showTotalBalance
+    if (filter.showBedName           !== undefined) filterShowBedName.value          = filter.showBedName
+    if (filter.showReservationDetail !== undefined) filterShowReservationDetail.value = filter.showReservationDetail
+    if (filter.calendarLabel         !== undefined) filterCalendarLabel.value        = filter.calendarLabel
     if (filter.startDate !== undefined) {
       const end = filter.endDate ?? addDays(filter.startDate, props.config.visibleDays - 1)
       emit('date-range-changed', { startDate: filter.startDate, endDate: end })
@@ -557,7 +669,7 @@ defineExpose({
 
 .cal-wrap {
   overflow: auto;
-  height: 90vh;
+  height: 100%;
   font-size: 12px;
   border-radius: 8px;
   border: 1px solid #e0e0e0;
@@ -582,7 +694,8 @@ defineExpose({
   z-index: 10;
   box-shadow: 1px 0 0 #e5e7eb, 4px 0 8px -2px rgba(0,0,0,0.06);
 }
-.cal-table thead th      { position: sticky; top: 0; z-index: 11; }
+.cal-table thead tr:first-child th { position: sticky; top: 0; z-index: 11; }
+.cal-table thead tr:last-child  th { position: sticky; top: 28px; z-index: 11; }
 .cal-table thead th:first-child { z-index: 21; }
 
 .cal-table th {
@@ -1023,6 +1136,28 @@ defineExpose({
 @media (hover: hover) and (pointer: fine) {
   .rcd-btn--confirm:hover { background: #b45309; }
 }
+
+/* Room cell drag handle (normal mode) */
+.room-drag-handle {
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-right: 6px; color: #d1d5db; flex-shrink: 0;
+  transition: color 0.12s;
+}
+.room-cell--draggable { cursor: grab; }
+.room-cell--draggable:active { cursor: grabbing; }
+@media (hover: hover) and (pointer: fine) {
+  .room-cell--draggable:hover .room-drag-handle { color: #9ca3af; }
+}
+
+/* Row drag states */
+.row-is-dragged td { opacity: 0.4; }
+.row-drop-above td { box-shadow: inset 0 2px 0 #6366f1 !important; }
+
+/* Bed name */
+.room-bed-name { font-weight: 400; color: #bbb; }
+
+/* Balance line on booking block */
+.b-balance { font-size: 9px; color: rgba(255,255,255,0.65); }
 
 /* Dialog enter/leave transitions */
 .confirm-dialog-enter-active {

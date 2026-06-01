@@ -7,6 +7,7 @@ export interface Room {
   name: string
   type: string
   status: RoomStatus
+  bedName?: string
 }
 
 export interface RoomSection {
@@ -28,6 +29,7 @@ export interface Reservation {
   /** 0–100 */
   paidPercent: number
   status: ReservationStatus
+  totalBalance?: number
 }
 
 export interface CalendarConfig {
@@ -92,6 +94,20 @@ export interface CalendarFilter {
   endDate?: string
   /** Show or hide the room status badge (OC / VC / etc.) */
   showRoomStatus?: boolean
+  /** 'by-room-type' groups rooms by section; 'normal' shows a flat reorderable list */
+  calendarType?: 'by-room-type' | 'normal'
+  /** Explicit room order (array of room IDs) — only used when calendarType is 'normal' */
+  roomOrder?: string[]
+  /** Show rooms that have no reservations in the visible range (default true) */
+  showUnallocated?: boolean
+  /** Show total balance on the booking block */
+  showTotalBalance?: boolean
+  /** Show bed name after room name in the room column */
+  showBedName?: boolean
+  /** Show reservation detail tooltip on hover (default true) */
+  showReservationDetail?: boolean
+  /** Primary label shown on the booking block */
+  calendarLabel?: 'guest-name' | 'folio'
 }
 
 export interface NewReservationPayload {

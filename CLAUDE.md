@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Workflow
+
+- **Do not start the preview server or take screenshots after editing code.** The user will verify changes manually in the browser.
+
 ## Commands
 
 All commands run from `room-calendar/`:
