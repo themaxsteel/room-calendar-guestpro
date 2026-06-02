@@ -1,5 +1,5 @@
 <template>
-  <div class="rc-root">
+  <div class="rc-root" :style="calConfigStyle">
   <!-- Search toolbar -->
   <div class="rc-search-bar">
     <div class="rc-search-field" :class="{ 'is-active': searchActive }">
@@ -28,6 +28,13 @@
         {{ matchingRoomIds.size }} room{{ matchingRoomIds.size !== 1 ? 's' : '' }} found
       </span>
     </Transition>
+    <button class="rc-config-btn" @click="openCalConfig" title="Calendar Configuration">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+      Calendar Configuration
+    </button>
   </div>
 
   <div class="cal-wrap" ref="wrapRef" @scroll="onScroll">
@@ -137,7 +144,7 @@
                   >
                     <!-- Room Maintenance -->
                     <template v-if="block.status === 'ROOM_MAINTENANCE'">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.75)" stroke-width="2.5">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                         <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
                       </svg>
                       <div class="b-texts">
@@ -146,7 +153,7 @@
                     </template>
                     <!-- Booked -->
                     <template v-else-if="block.status === 'BOOKED'">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.75)" stroke-width="2.5">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                         <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
                       </svg>
                       <div class="b-texts">
@@ -156,7 +163,7 @@
                     <!-- Regular reservation -->
                     <template v-else>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                        stroke="rgba(255,255,255,0.7)"
+                        stroke="currentColor"
                         stroke-width="2.5">
                         <circle cx="12" cy="8" r="4"/>
                         <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
@@ -165,7 +172,7 @@
                         <span class="b-name">{{ filterCalendarLabel === 'folio' ? 'Folio #' + block.folioNumber : block.guestName }}</span>
                         <span v-if="filterCalendarLabel === 'guest-name'" class="b-folio">Folio #{{ block.folioNumber }}</span>
                         <span v-if="filterShowTotalBalance && block.totalBalance != null" class="b-balance">{{ formatBalance(block.totalBalance) }}</span>
-                        <span v-else class="b-paid">Paid {{ block.paidPercent }}%</span>
+                        <span v-else-if="filterShowTotalBalance" class="b-paid">Paid {{ block.paidPercent }}%</span>
                       </div>
                     </template>
                   </div>
@@ -382,11 +389,252 @@
       </span>
     </div>
   </div>
+  <!-- Calendar Configuration Modal -->
+  <Transition name="cfg-modal">
+    <div v-if="calConfigOpen" class="rc-cfg-overlay" @mousedown.self="calConfigOpen = false">
+      <div class="rc-cfg-dialog">
+        <!-- Header -->
+        <div class="rc-cfg-header">
+          <div class="rc-cfg-header-left">
+            <div class="rc-cfg-header-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="rgba(255,255,255,0.92)">
+                <path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.13-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/>
+              </svg>
+            </div>
+            <div>
+              <div class="rc-cfg-title">Calendar Configuration</div>
+              <div class="rc-cfg-subtitle">Customize calendar display and color settings</div>
+            </div>
+          </div>
+          <button class="rc-cfg-close" @click="calConfigOpen = false" title="Close">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Scrollable body -->
+        <div class="rc-cfg-body">
+
+          <!-- Display Settings -->
+          <div class="rc-cfg-section">
+            <div class="rc-cfg-section-title">
+              <span class="rc-cfg-section-icon">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                </svg>
+              </span>
+              Display Settings
+            </div>
+
+            <div class="rc-cfg-row">
+              <label class="rc-cfg-label">Block Label</label>
+              <div class="rc-cfg-check-group">
+                <label class="rc-cfg-check">
+                  <input type="checkbox"
+                    :checked="calConfig.calender_label !== 'folio'"
+                    @change="toggleLabel('guest_name', $event)">
+                  <span class="rc-cfg-check-box">
+                    <svg v-if="calConfig.calender_label !== 'folio'" width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="2 6 5 9 10 3"/>
+                    </svg>
+                  </span>
+                  <span>Guest Name</span>
+                </label>
+                <label class="rc-cfg-check">
+                  <input type="checkbox"
+                    :checked="calConfig.calender_label !== 'guest_name'"
+                    @change="toggleLabel('folio', $event)">
+                  <span class="rc-cfg-check-box">
+                    <svg v-if="calConfig.calender_label !== 'guest_name'" width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="2 6 5 9 10 3"/>
+                    </svg>
+                  </span>
+                  <span>Folio</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="rc-cfg-row">
+              <label class="rc-cfg-label">Calendar Type</label>
+              <div class="rc-cfg-radio-group">
+                <label class="rc-cfg-radio">
+                  <input type="radio" v-model="calConfig.calender_type" value="GROUP">
+                  <span>By Room Type</span>
+                </label>
+                <label class="rc-cfg-radio">
+                  <input type="radio" v-model="calConfig.calender_type" value="NORMAL">
+                  <span>Flat List</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="rc-cfg-row">
+              <label class="rc-cfg-label">Calendar Height (px)</label>
+              <input type="number" class="rc-cfg-number" v-model.number="calConfig.calender_hight" min="300" max="2000" step="50">
+            </div>
+
+            <div class="rc-cfg-inner-divider"></div>
+
+            <div class="rc-cfg-row rc-cfg-row--toggle">
+              <label class="rc-cfg-label">Show Unallocated Rooms</label>
+              <button class="rc-cfg-toggle" :class="{ 'is-on': calConfig.calender_use_unallocated === 1 }" @click="calConfig.calender_use_unallocated = calConfig.calender_use_unallocated === 1 ? 0 : 1">
+                <span class="rc-cfg-toggle-thumb"></span>
+              </button>
+            </div>
+
+            <div class="rc-cfg-row rc-cfg-row--toggle">
+              <label class="rc-cfg-label">Show Total Balance</label>
+              <button class="rc-cfg-toggle" :class="{ 'is-on': calConfig.calender_total_balance === 1 }" @click="calConfig.calender_total_balance = calConfig.calender_total_balance === 1 ? 0 : 1">
+                <span class="rc-cfg-toggle-thumb"></span>
+              </button>
+            </div>
+
+            <div class="rc-cfg-row rc-cfg-row--toggle">
+              <label class="rc-cfg-label">Show Bed Type After Room Name</label>
+              <button class="rc-cfg-toggle" :class="{ 'is-on': calConfig.show_bed_type_after_room_name === 1 }" @click="calConfig.show_bed_type_after_room_name = calConfig.show_bed_type_after_room_name === 1 ? 0 : 1">
+                <span class="rc-cfg-toggle-thumb"></span>
+              </button>
+            </div>
+
+            <div class="rc-cfg-row rc-cfg-row--toggle">
+              <label class="rc-cfg-label">Show Hover Tooltips</label>
+              <button class="rc-cfg-toggle" :class="{ 'is-on': calConfig.calender_show_hover_tooltips === 1 }" @click="calConfig.calender_show_hover_tooltips = calConfig.calender_show_hover_tooltips === 1 ? 0 : 1">
+                <span class="rc-cfg-toggle-thumb"></span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Dimensions -->
+          <div class="rc-cfg-section">
+            <div class="rc-cfg-section-title">
+              <span class="rc-cfg-section-icon">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 10H3V8h2v4h2V8h2v4h2V8h2v4h2V8h2v4h2V8h2v8z"/>
+                </svg>
+              </span>
+              Dimensions
+            </div>
+
+            <div class="rc-cfg-row">
+              <label class="rc-cfg-label">Room Column Width (px)</label>
+              <input type="number" class="rc-cfg-number" v-model.number="calConfig.calender_room_column" min="100" max="400" step="10">
+            </div>
+
+            <div class="rc-cfg-row">
+              <label class="rc-cfg-label">Room Type Column Width (px)</label>
+              <input type="number" class="rc-cfg-number" v-model.number="calConfig.calender_room_type_column" min="40" max="200" step="10">
+            </div>
+          </div>
+
+          <!-- Status Colors -->
+          <div class="rc-cfg-section">
+            <div class="rc-cfg-section-title">
+              <span class="rc-cfg-section-icon">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+                </svg>
+              </span>
+              Status Colors
+            </div>
+
+            <div class="rc-cfg-colors-header">
+              <span></span>
+              <span class="rc-cfg-color-col-label">Background</span>
+              <span class="rc-cfg-color-col-label">Text</span>
+            </div>
+
+            <div class="rc-cfg-color-row">
+              <span class="rc-cfg-status-label">
+                <span class="rc-cfg-status-dot" :style="{ background: calConfig.background_color_reservation }"></span>
+                Reservation
+              </span>
+              <label class="rc-cfg-color-swatch">
+                <input type="color" v-model="calConfig.background_color_reservation">
+                <span :style="{ background: calConfig.background_color_reservation }"></span>
+              </label>
+              <label class="rc-cfg-color-swatch">
+                <input type="color" v-model="calConfig.foreground_color_reservation">
+                <span class="rc-cfg-color-swatch-fg" :style="{ background: calConfig.foreground_color_reservation }"></span>
+              </label>
+            </div>
+
+            <div class="rc-cfg-color-row">
+              <span class="rc-cfg-status-label">
+                <span class="rc-cfg-status-dot" :style="{ background: calConfig.background_color_tentative }"></span>
+                Tentative
+              </span>
+              <label class="rc-cfg-color-swatch">
+                <input type="color" v-model="calConfig.background_color_tentative">
+                <span :style="{ background: calConfig.background_color_tentative }"></span>
+              </label>
+              <label class="rc-cfg-color-swatch">
+                <input type="color" v-model="calConfig.foreground_color_tentative">
+                <span class="rc-cfg-color-swatch-fg" :style="{ background: calConfig.foreground_color_tentative }"></span>
+              </label>
+            </div>
+
+            <div class="rc-cfg-color-row">
+              <span class="rc-cfg-status-label">
+                <span class="rc-cfg-status-dot" :style="{ background: calConfig.background_color_inhouse }"></span>
+                In-House
+              </span>
+              <label class="rc-cfg-color-swatch">
+                <input type="color" v-model="calConfig.background_color_inhouse">
+                <span :style="{ background: calConfig.background_color_inhouse }"></span>
+              </label>
+              <label class="rc-cfg-color-swatch">
+                <input type="color" v-model="calConfig.foreground_color_inhouse">
+                <span class="rc-cfg-color-swatch-fg" :style="{ background: calConfig.foreground_color_inhouse }"></span>
+              </label>
+            </div>
+
+            <div class="rc-cfg-color-row">
+              <span class="rc-cfg-status-label">
+                <span class="rc-cfg-status-dot" :style="{ background: calConfig.background_color_checkout }"></span>
+                Check-Out
+              </span>
+              <label class="rc-cfg-color-swatch">
+                <input type="color" v-model="calConfig.background_color_checkout">
+                <span :style="{ background: calConfig.background_color_checkout }"></span>
+              </label>
+              <label class="rc-cfg-color-swatch">
+                <input type="color" v-model="calConfig.foreground_color_checkout">
+                <span class="rc-cfg-color-swatch-fg" :style="{ background: calConfig.foreground_color_checkout }"></span>
+              </label>
+            </div>
+
+            <div class="rc-cfg-color-row">
+              <span class="rc-cfg-status-label">
+                <span class="rc-cfg-status-dot" :style="{ background: calConfig.background_color_room_maintenance }"></span>
+                Maintenance
+              </span>
+              <label class="rc-cfg-color-swatch">
+                <input type="color" v-model="calConfig.background_color_room_maintenance">
+                <span :style="{ background: calConfig.background_color_room_maintenance }"></span>
+              </label>
+              <label class="rc-cfg-color-swatch">
+                <input type="color" v-model="calConfig.foreground_color_room_maintenance">
+                <span class="rc-cfg-color-swatch-fg" :style="{ background: calConfig.foreground_color_room_maintenance }"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="rc-cfg-footer">
+          <button class="rc-cfg-btn rc-cfg-btn--cancel" @click="calConfigOpen = false">Cancel</button>
+          <button class="rc-cfg-btn rc-cfg-btn--save" @click="saveCalConfig">Save Configuration</button>
+        </div>
+      </div>
+    </div>
+  </Transition>
+
   </div><!-- /rc-root -->
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, toRef } from 'vue'
+import { ref, computed, watch, toRef, reactive } from 'vue'
 import type { Room, RoomSection, Reservation, CalendarConfig, CalendarFilter, NewResDragState, NewResPopover } from '../types'
 import { useSections } from '../composables/useSections'
 import { useCalendarDays } from '../composables/useCalendarDays'
@@ -415,6 +663,7 @@ const emit = defineEmits<{
   'reservation-moved':  [payload: { id: string; room_id: string; arrival_date: string; departure_date: string; company_id: string; from_room_id: string }]
   'date-range-changed': [payload: { startDate: string; endDate: string }]
   'new-reservation':    [payload: { roomId: string; checkIn: string; checkOut: string; type: 'room-plan' | 'single' | 'group' }]
+  'calendar-config-saved': [payload: Record<string, unknown>]
 }>()
 
 const DAY_COL_W = computed(() => props.config.dayColWidth ?? 80)
@@ -429,6 +678,79 @@ const filterShowTotalBalance    = ref(false)
 const filterShowBedName         = ref(false)
 const filterShowReservationDetail = ref(true)
 const filterCalendarLabel       = ref<'guest-name' | 'folio'>('guest-name')
+
+// ── Calendar Configuration ───────────────────────────────────────────────────
+const calConfigOpen = ref(false)
+const calConfig = reactive({
+  calender_label:                  'guest_name' as 'guest_name' | 'folio' | 'guest_name,folio',
+  calender_hight:                  700,
+  calender_type:                   'GROUP' as 'GROUP' | 'NORMAL',
+  calender_use_unallocated:        1 as 0 | 1,
+  background_color_reservation:    '#d97706',
+  background_color_tentative:      '#475569',
+  background_color_inhouse:        '#16a34a',
+  background_color_checkout:       '#dc2626',
+  background_color_room_maintenance: '#475569',
+  foreground_color_inhouse:        '#ffffff',
+  foreground_color_checkout:       '#ffffff',
+  foreground_color_room_maintenance: '#ffffff',
+  foreground_color_reservation:    '#ffffff',
+  foreground_color_tentative:      '#ffffff',
+  calender_room_column:            170,
+  calender_room_type_column:       80,
+  calender_total_balance:          0 as 0 | 1,
+  show_bed_type_after_room_name:   0 as 0 | 1,
+  calender_show_hover_tooltips:    1 as 0 | 1,
+})
+
+const calConfigStyle = computed(() => ({
+  '--rc-bg-reservation': calConfig.background_color_reservation,
+  '--rc-bg-tentative':   calConfig.background_color_tentative,
+  '--rc-bg-inhouse':     calConfig.background_color_inhouse,
+  '--rc-bg-checkout':    calConfig.background_color_checkout,
+  '--rc-bg-maintenance': calConfig.background_color_room_maintenance,
+  '--rc-fg-reservation': calConfig.foreground_color_reservation,
+  '--rc-fg-tentative':   calConfig.foreground_color_tentative,
+  '--rc-fg-inhouse':     calConfig.foreground_color_inhouse,
+  '--rc-fg-checkout':    calConfig.foreground_color_checkout,
+  '--rc-fg-maintenance': calConfig.foreground_color_room_maintenance,
+}))
+
+function toggleLabel(part: 'guest_name' | 'folio', event: Event) {
+  const checked = (event.target as HTMLInputElement).checked
+  const hasGuest = calConfig.calender_label !== 'folio'
+  const hasFolio = calConfig.calender_label !== 'guest_name'
+  if (part === 'guest_name') {
+    if (!checked && !hasFolio) { (event.target as HTMLInputElement).checked = true; return }
+    calConfig.calender_label = checked ? (hasFolio ? 'guest_name,folio' : 'guest_name') : 'folio'
+  } else {
+    if (!checked && !hasGuest) { (event.target as HTMLInputElement).checked = true; return }
+    calConfig.calender_label = checked ? (hasGuest ? 'guest_name,folio' : 'folio') : 'guest_name'
+  }
+}
+
+function openCalConfig() {
+  calConfig.calender_label               = filterCalendarLabel.value === 'folio' ? 'folio' : 'guest_name'
+  calConfig.calender_type                = filterCalendarType.value === 'normal' ? 'NORMAL' : 'GROUP'
+  calConfig.calender_use_unallocated     = filterShowUnallocated.value ? 1 : 0
+  calConfig.calender_total_balance       = filterShowTotalBalance.value ? 1 : 0
+  calConfig.show_bed_type_after_room_name = filterShowBedName.value ? 1 : 0
+  calConfig.calender_show_hover_tooltips = filterShowReservationDetail.value ? 1 : 0
+  calConfig.calender_room_column         = ROOM_COL_W.value
+  calConfigOpen.value = true
+}
+
+function saveCalConfig() {
+  filterCalendarLabel.value        = calConfig.calender_label === 'folio' ? 'folio' : 'guest-name'
+  filterCalendarType.value         = calConfig.calender_type === 'NORMAL' ? 'normal' : 'by-room-type'
+  filterShowUnallocated.value      = calConfig.calender_use_unallocated === 1
+  filterShowTotalBalance.value     = calConfig.calender_total_balance === 1
+  filterShowBedName.value          = calConfig.show_bed_type_after_room_name === 1
+  filterShowReservationDetail.value = calConfig.calender_show_hover_tooltips === 1
+  filterRoomColW.value             = calConfig.calender_room_column
+  emit('calendar-config-saved', { ...calConfig })
+  calConfigOpen.value = false
+}
 
 const ROOM_COL_W = computed(() => filterRoomColW.value ?? props.config.roomColWidth ?? 170)
 
@@ -889,12 +1211,32 @@ defineExpose({
   transition: filter 0.15s, box-shadow 0.15s, opacity 0.15s;
   user-select: none;
 }
-/* Status colors */
-.booking-block.status-definite      { background: #d97706; border-left-color: #b45309; }
-.booking-block.status-check-in      { background: #16a34a; border-left-color: #15803d; }
-.booking-block.status-check-out     { background: #dc2626; border-left-color: #b91c1c; }
-.booking-block.status-booked        { background: #475569; border-left-color: #334155; }
-.booking-block.status-room-maintenance { background: #475569; border-left-color: #334155; }
+/* Status colors — use CSS custom properties so config popup can override them live */
+.booking-block.status-definite {
+  background: var(--rc-bg-reservation, #d97706);
+  border-left-color: var(--rc-bg-reservation, #b45309);
+  --block-fg: var(--rc-fg-reservation, #ffffff);
+}
+.booking-block.status-check-in {
+  background: var(--rc-bg-inhouse, #16a34a);
+  border-left-color: var(--rc-bg-inhouse, #15803d);
+  --block-fg: var(--rc-fg-inhouse, #ffffff);
+}
+.booking-block.status-check-out {
+  background: var(--rc-bg-checkout, #dc2626);
+  border-left-color: var(--rc-bg-checkout, #b91c1c);
+  --block-fg: var(--rc-fg-checkout, #ffffff);
+}
+.booking-block.status-booked {
+  background: var(--rc-bg-tentative, #475569);
+  border-left-color: var(--rc-bg-tentative, #334155);
+  --block-fg: var(--rc-fg-tentative, #ffffff);
+}
+.booking-block.status-room-maintenance {
+  background: var(--rc-bg-maintenance, #475569);
+  border-left-color: var(--rc-bg-maintenance, #334155);
+  --block-fg: var(--rc-fg-maintenance, #ffffff);
+}
 @media (hover: hover) and (pointer: fine) {
   .booking-block:hover { filter: brightness(1.08); }
 }
@@ -934,11 +1276,13 @@ defineExpose({
   padding: 0 6px;
   white-space: nowrap;
   pointer-events: none;
+  color: var(--block-fg, #fff);
 }
+.booking-inner > svg { opacity: 0.75; }
 .b-texts { display: flex; flex-direction: column; justify-content: center; gap: 1px; }
-.b-name  { font-size: 10px; font-weight: 600; color: #fff; }
-.b-folio { font-size: 9px;  color: rgba(255,255,255,0.7); }
-.b-paid  { font-size: 9px;  color: rgba(255,255,255,0.65); }
+.b-name  { font-size: 10px; font-weight: 600; color: var(--block-fg, #fff); }
+.b-folio { font-size: 9px;  color: var(--block-fg, #fff); opacity: 0.7; }
+.b-paid  { font-size: 9px;  color: var(--block-fg, #fff); opacity: 0.65; }
 
 /* Tooltip */
 .rc-tooltip {
@@ -1236,7 +1580,7 @@ defineExpose({
 .room-bed-name { font-weight: 400; color: #bbb; }
 
 /* Balance line on booking block */
-.b-balance { font-size: 9px; color: rgba(255,255,255,0.65); }
+.b-balance { font-size: 9px; color: var(--block-fg, #fff); opacity: 0.65; }
 
 /* Root wrapper */
 .rc-root {
@@ -1252,7 +1596,6 @@ defineExpose({
   gap: 10px;
   padding: 8px 12px;
   background: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
   flex-shrink: 0;
 }
 
@@ -1336,6 +1679,255 @@ defineExpose({
   box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgba(99, 102, 241, 0.75);
   z-index: 5;
 }
+
+/* Calendar Configuration button */
+.rc-config-btn {
+  display: flex; align-items: center; gap: 6px;
+  margin-left: auto;
+  padding: 5px 11px;
+  background: #f9fafb;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 12px; font-weight: 600; color: #374151;
+  cursor: pointer; flex-shrink: 0; font-family: inherit;
+  transition: background 0.12s, border-color 0.12s, color 0.12s,
+              transform 0.1s cubic-bezier(0.23, 1, 0.32, 1);
+  white-space: nowrap;
+}
+@media (hover: hover) and (pointer: fine) {
+  .rc-config-btn:hover { background: #eef2ff; border-color: #6366f1; color: #6366f1; }
+}
+.rc-config-btn:active { transform: scale(0.97); }
+
+/* Config modal overlay */
+.rc-cfg-overlay {
+  position: fixed; inset: 0; z-index: 99999;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(2px);
+}
+.rc-cfg-dialog {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  width: 480px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 48px);
+  display: flex; flex-direction: column;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.14), 0 4px 16px rgba(0,0,0,0.08);
+  overflow: hidden;
+}
+
+/* Modal header */
+.rc-cfg-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 20px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+.rc-cfg-header-left { display: flex; align-items: center; gap: 12px; }
+.rc-cfg-header-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: #6366f1;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.rc-cfg-title { font-size: 15px; font-weight: 700; color: #111827; letter-spacing: 0.01em; }
+.rc-cfg-subtitle { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+.rc-cfg-close {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: none; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: #9ca3af; flex-shrink: 0;
+  transition: background 0.1s, color 0.1s;
+}
+@media (hover: hover) and (pointer: fine) {
+  .rc-cfg-close:hover { background: #f3f4f6; color: #374151; }
+}
+
+/* Modal body */
+.rc-cfg-body { flex: 1; overflow-y: auto; padding: 4px 0; }
+.rc-cfg-body::-webkit-scrollbar { width: 4px; }
+.rc-cfg-body::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 2px; }
+
+/* Section */
+.rc-cfg-section {
+  padding: 14px 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.rc-cfg-section:last-child { border-bottom: none; }
+.rc-cfg-section-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 700; color: #111827;
+  letter-spacing: -0.01em; margin-bottom: 14px;
+}
+.rc-cfg-section-icon {
+  width: 24px; height: 24px; border-radius: 6px;
+  background: #eef2ff; color: #6366f1;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.rc-cfg-inner-divider {
+  height: 1px; background: #d1d5db;
+  margin: 10px 0 14px;
+}
+
+/* Setting rows */
+.rc-cfg-row {
+  display: flex; align-items: center; justify-content: space-between;
+  min-height: 34px; gap: 12px; margin-bottom: 8px;
+}
+.rc-cfg-row:last-child { margin-bottom: 0; }
+.rc-cfg-label { font-size: 12.5px; color: #374151; font-weight: 500; flex: 1; min-width: 0; }
+
+/* Radio pills — Calendar Type */
+.rc-cfg-radio-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.rc-cfg-radio {
+  display: flex; align-items: center;
+  font-size: 12px; color: #374151; cursor: pointer;
+  padding: 4px 10px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 6px;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+  user-select: none;
+}
+.rc-cfg-radio input[type="radio"] { display: none; }
+.rc-cfg-radio:has(input:checked) {
+  border-color: #6366f1; background: #eef2ff;
+  color: #6366f1; font-weight: 600;
+}
+
+/* Checkbox group for block label */
+.rc-cfg-check-group { display: flex; gap: 10px; flex-wrap: wrap; }
+.rc-cfg-check {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12.5px; color: #374151; cursor: pointer; user-select: none;
+}
+.rc-cfg-check input[type="checkbox"] { display: none; }
+.rc-cfg-check-box {
+  width: 18px; height: 18px; border-radius: 5px; flex-shrink: 0;
+  border: 1.5px solid #d1d5db;
+  display: flex; align-items: center; justify-content: center;
+  background: #fff;
+  transition: background 0.12s, border-color 0.12s;
+}
+.rc-cfg-check:has(input:checked) .rc-cfg-check-box {
+  background: #6366f1; border-color: #6366f1;
+}
+.rc-cfg-check:has(input:checked) { color: #111827; font-weight: 600; }
+
+/* Number input */
+.rc-cfg-number {
+  width: 90px; padding: 5px 9px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 7px;
+  font-size: 12.5px; color: #374151; font-family: inherit;
+  outline: none; flex-shrink: 0;
+  transition: border-color 0.12s;
+}
+.rc-cfg-number:focus { border-color: #6366f1; }
+
+/* Toggle switch */
+.rc-cfg-toggle {
+  width: 40px; height: 22px; border-radius: 11px;
+  background: #e5e7eb; border: none; cursor: pointer;
+  position: relative; flex-shrink: 0; padding: 0;
+  transition: background 0.18s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.rc-cfg-toggle.is-on { background: #6366f1; }
+.rc-cfg-toggle-thumb {
+  position: absolute; top: 3px; left: 3px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  transition: transform 0.18s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.rc-cfg-toggle.is-on .rc-cfg-toggle-thumb { transform: translateX(18px); }
+
+/* Color grid */
+.rc-cfg-colors-header {
+  display: grid; grid-template-columns: 1fr 72px 72px;
+  gap: 8px; margin-bottom: 8px; align-items: center;
+}
+.rc-cfg-color-col-label {
+  font-size: 10px; font-weight: 600; color: #bbb;
+  text-transform: uppercase; letter-spacing: 0.05em; text-align: center;
+}
+.rc-cfg-color-row {
+  display: grid; grid-template-columns: 1fr 72px 72px;
+  gap: 8px; align-items: center; margin-bottom: 10px;
+}
+.rc-cfg-color-row:last-child { margin-bottom: 0; }
+.rc-cfg-status-label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12.5px; font-weight: 500; color: #374151;
+}
+.rc-cfg-status-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+/* Color swatch */
+.rc-cfg-color-swatch {
+  display: flex; justify-content: center; cursor: pointer; position: relative;
+}
+.rc-cfg-color-swatch input[type="color"] {
+  position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;
+}
+.rc-cfg-color-swatch span {
+  width: 40px; height: 28px; border-radius: 7px;
+  border: 1.5px solid rgba(0,0,0,0.1); display: block;
+  transition: transform 0.1s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.1s;
+  cursor: pointer;
+}
+.rc-cfg-color-swatch-fg {
+  background-image: repeating-conic-gradient(#e5e7eb 0% 25%, #fff 0% 50%) !important;
+  background-size: 8px 8px !important;
+  position: relative;
+}
+.rc-cfg-color-swatch-fg::after {
+  content: '';
+  position: absolute; inset: 0; border-radius: 5px;
+  background: inherit;
+  background-image: none !important;
+}
+@media (hover: hover) and (pointer: fine) {
+  .rc-cfg-color-swatch:hover span {
+    transform: scale(1.08);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.18);
+  }
+}
+
+/* Modal footer */
+.rc-cfg-footer {
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding: 14px 20px;
+  border-top: 1px solid #e5e7eb;
+  background: #fafafa; flex-shrink: 0;
+}
+.rc-cfg-btn {
+  padding: 9px 18px; border-radius: 9px;
+  font-size: 13px; font-weight: 600;
+  border: none; cursor: pointer; font-family: inherit;
+  transition: background 0.1s, transform 0.1s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.rc-cfg-btn:active { transform: scale(0.97); }
+.rc-cfg-btn--cancel { background: #f3f4f6; color: #374151; }
+@media (hover: hover) and (pointer: fine) {
+  .rc-cfg-btn--cancel:hover { background: #e5e7eb; }
+}
+.rc-cfg-btn--save { background: #6366f1; color: #ffffff; }
+@media (hover: hover) and (pointer: fine) {
+  .rc-cfg-btn--save:hover { background: #4f46e5; }
+}
+
+/* Modal transition */
+.cfg-modal-enter-active { transition: opacity 0.18s ease-out; }
+.cfg-modal-leave-active { transition: opacity 0.14s ease-in; }
+.cfg-modal-enter-from, .cfg-modal-leave-to { opacity: 0; }
+.cfg-modal-enter-active .rc-cfg-dialog {
+  transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.18s ease-out;
+}
+.cfg-modal-leave-active .rc-cfg-dialog {
+  transition: transform 0.14s ease-in, opacity 0.14s ease-in;
+}
+.cfg-modal-enter-from .rc-cfg-dialog { transform: scale(0.95) translateY(8px); opacity: 0; }
+.cfg-modal-leave-to .rc-cfg-dialog { transform: scale(0.97); opacity: 0; }
 
 /* Dialog enter/leave transitions */
 .confirm-dialog-enter-active {
