@@ -1,4 +1,35 @@
 <template>
+  <div class="rc-root">
+  <!-- Search toolbar -->
+  <div class="rc-search-bar">
+    <div class="rc-search-field" :class="{ 'is-active': searchActive }">
+      <svg class="rc-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/>
+      </svg>
+      <input
+        ref="searchInputRef"
+        v-model="searchQuery"
+        class="rc-search-input"
+        placeholder="Search guest name or folio..."
+        @focus="searchActive = true"
+        @blur="searchActive = searchQuery.length > 0"
+        @keydown.esc="clearSearch"
+      >
+      <Transition name="search-clear-fade">
+        <button v-if="searchQuery" class="rc-search-clear" @mousedown.prevent="clearSearch" title="Clear">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </Transition>
+    </div>
+    <Transition name="search-badge-fade">
+      <span v-if="searchQuery" class="rc-search-badge">
+        {{ matchingRoomIds.size }} room{{ matchingRoomIds.size !== 1 ? 's' : '' }} found
+      </span>
+    </Transition>
+  </div>
+
   <div class="cal-wrap" ref="wrapRef" @scroll="onScroll">
     <table class="cal-table" :class="{ 'is-dragging': dragState !== null }">
       <thead>
@@ -47,6 +78,8 @@
               'drop-target':     dragState !== null && dragState.targetRoomId === room.id && dragState.roomId !== room.id,
               'row-is-dragged':  rowDragState?.roomId === room.id,
               'row-drop-above':  rowDragState !== null && rowDragState.toIdx === roomIdx && rowDragState.fromIdx !== roomIdx,
+              'row-search-dim':  searchQuery && !matchingRoomIds.has(room.id),
+              'row-search-match': searchQuery && matchingRoomIds.has(room.id),
             }"
             @mouseenter="onRoomRowMouseenter(room.id)"
           >
@@ -88,7 +121,7 @@
                   v-for="block in roomBlocks(room.id)"
                   :key="block.id"
                   class="booking-block"
-                  :class="[`status-${block.status.toLowerCase().replace('_', '-')}`, { 'is-dragged': dragState?.blockId === block.id, 'is-reverting': isReverting && dragState?.blockId === block.id }]"
+                  :class="[`status-${block.status.toLowerCase().replace('_', '-')}`, { 'is-dragged': dragState?.blockId === block.id, 'is-reverting': isReverting && dragState?.blockId === block.id, 'is-search-match': searchQuery && isSearchMatch(block), 'is-search-dim': searchQuery && !isSearchMatch(block) }]"
                   :style="{
                     left: block.left + 'px',
                     width: block.width + 'px',
@@ -349,6 +382,7 @@
       </span>
     </div>
   </div>
+  </div><!-- /rc-root -->
 </template>
 
 <script setup lang="ts">
@@ -398,6 +432,22 @@ const filterCalendarLabel       = ref<'guest-name' | 'folio'>('guest-name')
 
 const ROOM_COL_W = computed(() => filterRoomColW.value ?? props.config.roomColWidth ?? 170)
 
+// ── Search ────────────────────────────────────────────────────────────────────
+const searchQuery    = ref('')
+const searchActive   = ref(false)
+const searchInputRef = ref<HTMLInputElement | null>(null)
+
+function isSearchMatch(block: { guestName: string; folioNumber: string }): boolean {
+  const q = searchQuery.value.toLowerCase().trim()
+  if (!q) return true
+  return block.guestName.toLowerCase().includes(q) || block.folioNumber.toLowerCase().includes(q)
+}
+
+function clearSearch() {
+  searchQuery.value  = ''
+  searchActive.value = false
+}
+
 const localSections = ref<RoomSection[]>([...props.sections])
 
 watch(() => props.sections, (val) => { localSections.value = [...val] }, { deep: true })
@@ -421,6 +471,24 @@ const orderedRooms = computed(() => {
   return result
 })
 
+const matchingRoomIds = computed((): Set<string> => {
+  const q = searchQuery.value.toLowerCase().trim()
+  if (!q) return new Set()
+  const ids = new Set<string>()
+  for (const r of localReservations.value) {
+    if (r.guestName.toLowerCase().includes(q) || r.folioNumber.toLowerCase().includes(q))
+      ids.add(r.roomId)
+  }
+  return ids
+})
+
+function sortBySearch(rooms: Room[]): Room[] {
+  if (!searchQuery.value.trim()) return rooms
+  const matched = rooms.filter(r => matchingRoomIds.value.has(r.id))
+  const rest    = rooms.filter(r => !matchingRoomIds.value.has(r.id))
+  return [...matched, ...rest]
+}
+
 const displaySections = computed((): RoomSection[] => {
   const reservedRooms = filterShowUnallocated.value
     ? null
@@ -430,13 +498,20 @@ const displaySections = computed((): RoomSection[] => {
     const rooms = reservedRooms
       ? orderedRooms.value.filter(r => reservedRooms.has(r.id))
       : orderedRooms.value
-    return [{ id: '__all__', label: 'All Rooms', color: '#6366f1', rooms }]
+    return [{ id: '__all__', label: 'All Rooms', color: '#6366f1', rooms: sortBySearch(rooms) }]
   }
 
-  return localSections.value.map(s => ({
+  const sections = localSections.value.map(s => ({
     ...s,
-    rooms: reservedRooms ? s.rooms.filter(r => reservedRooms.has(r.id)) : s.rooms,
+    rooms: sortBySearch(reservedRooms ? s.rooms.filter(r => reservedRooms.has(r.id)) : s.rooms),
   })).filter(s => s.rooms.length > 0)
+
+  if (searchQuery.value.trim()) {
+    const hasMatch = (s: RoomSection) => s.rooms.some(r => matchingRoomIds.value.has(r.id))
+    sections.sort((a, b) => (hasMatch(a) ? 0 : 1) - (hasMatch(b) ? 0 : 1))
+  }
+
+  return sections
 })
 
 // ── Row drag-to-reorder (normal mode only) ────────────────────────────────────
@@ -638,6 +713,10 @@ defineExpose({
   },
   loadReservation(data: GuestProReservationItem[] | GuestProReservationResponse) {
     localReservations.value = transformReservations(data)
+  },
+  search(query: string) {
+    searchQuery.value = query
+    searchActive.value = query.length > 0
   },
   setFilter(filter: CalendarFilter) {
     if (filter.roomColWidth          !== undefined) filterRoomColW.value             = filter.roomColWidth
@@ -1158,6 +1237,105 @@ defineExpose({
 
 /* Balance line on booking block */
 .b-balance { font-size: 9px; color: rgba(255,255,255,0.65); }
+
+/* Root wrapper */
+.rc-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Search toolbar */
+.rc-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.rc-search-field {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  max-width: 320px;
+  background: #f3f4f6;
+  border: 1.5px solid transparent;
+  border-radius: 8px;
+  padding: 5px 10px;
+  transition: border-color 0.15s cubic-bezier(0.23, 1, 0.32, 1),
+              background  0.15s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.rc-search-field.is-active,
+.rc-search-field:focus-within {
+  border-color: #6366f1;
+  background: #ffffff;
+}
+.rc-search-icon {
+  color: #9ca3af;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.rc-search-field.is-active .rc-search-icon,
+.rc-search-field:focus-within .rc-search-icon { color: #6366f1; }
+
+.rc-search-input {
+  flex: 1; min-width: 0;
+  background: none; border: none; outline: none;
+  font-size: 12px; color: #111827;
+  font-family: inherit;
+}
+.rc-search-input::placeholder { color: #c4c9d4; }
+
+.rc-search-clear {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 4px;
+  background: #e5e7eb; border: none; cursor: pointer;
+  color: #6b7280; padding: 0; flex-shrink: 0;
+  transition: background 0.1s, color 0.1s;
+}
+@media (hover: hover) and (pointer: fine) {
+  .rc-search-clear:hover { background: #d1d5db; color: #374151; }
+}
+
+.rc-search-badge {
+  font-size: 11px;
+  color: #6366f1;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Clear button transition */
+.search-clear-fade-enter-active { transition: opacity 0.12s ease-out, transform 0.12s ease-out; }
+.search-clear-fade-leave-active { transition: opacity 0.08s ease-in, transform 0.08s ease-in; }
+.search-clear-fade-enter-from  { opacity: 0; transform: scale(0.7); }
+.search-clear-fade-leave-to    { opacity: 0; transform: scale(0.7); }
+
+/* Badge transition */
+.search-badge-fade-enter-active { transition: opacity 0.15s ease-out; }
+.search-badge-fade-leave-active { transition: opacity 0.1s ease-in; }
+.search-badge-fade-enter-from,
+.search-badge-fade-leave-to     { opacity: 0; }
+
+/* cal-wrap fills remaining height */
+.cal-wrap { flex: 1; min-height: 0; }
+
+/* Row search states */
+.row-search-dim td   { opacity: 0.35; transition: opacity 0.2s; }
+.row-search-match td { transition: opacity 0.2s; }
+
+/* Block search states */
+.booking-block.is-search-dim {
+  opacity: 0.2;
+  transition: opacity 0.2s;
+}
+.booking-block.is-search-match {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgba(99, 102, 241, 0.75);
+  z-index: 5;
+}
 
 /* Dialog enter/leave transitions */
 .confirm-dialog-enter-active {
