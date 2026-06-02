@@ -40,7 +40,7 @@ export function addDays(iso: string, n: number): string {
 export function isoToLabel(iso: string): string {
   const d = new Date(iso)
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-  return `${days[d.getDay()]}, ${d.getDate()}`
+  return `${days[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]}`
 }
 
 export function weekLabel(iso: string): string {

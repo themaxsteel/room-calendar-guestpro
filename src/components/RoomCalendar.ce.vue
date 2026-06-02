@@ -28,6 +28,15 @@
         {{ matchingRoomIds.size }} room{{ matchingRoomIds.size !== 1 ? 's' : '' }} found
       </span>
     </Transition>
+    <button class="rc-filter-btn" :class="{ 'has-active': filterSearchActive }" @click="openFilterSearch" title="Filter">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+      <span class="rc-filter-btn-text">Filter</span>
+      <span v-if="filterSearchActive" class="rc-filter-dot"></span>
+    </button>
     <button class="rc-config-btn" @click="openCalConfig" title="Calendar Configuration">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="3"/>
@@ -49,7 +58,7 @@
       <thead>
         <!-- Week header row -->
         <tr>
-          <th class="col-room">ROOM</th>
+          <th class="col-room col-room--header" rowspan="2">ROOM</th>
           <th
             v-for="week in weekHeaders"
             :key="week.label"
@@ -59,12 +68,11 @@
         </tr>
         <!-- Day header row -->
         <tr>
-          <th class="col-room"></th>
           <th
             v-for="day in visibleDays"
             :key="day.iso"
             class="col-day"
-            :class="{ 'today-th': day.isToday }"
+            :class="{ 'today-th': day.isToday, }"
           >{{ day.label }}</th>
         </tr>
       </thead>
@@ -210,6 +218,16 @@
     </table>
     </div><!-- /.cal-table-positioner -->
   </div>
+
+  <!-- Infinite scroll loading indicator -->
+  <Transition name="inf-loader">
+    <div v-if="isInfiniteLoading" class="rc-inf-loader">
+      <svg class="rc-inf-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+      </svg>
+      <span>Loading…</span>
+    </div>
+  </Transition>
 
   <!-- New reservation drag tooltip (white) -->
   <div v-if="newResPreview && newResDrag?.isActive" class="rc-newres-tooltip" :style="newResTooltipStyle">
@@ -432,6 +450,106 @@
       </span>
     </div>
   </div>
+  <!-- Filter Search Modal -->
+  <Transition name="cfg-modal">
+    <div v-if="filterSearchOpen" class="rc-cfg-overlay" @pointerdown.self="filterSearchOpen = false">
+      <div class="rc-cfg-dialog rc-fs-dialog">
+        <!-- Header -->
+        <div class="rc-cfg-header">
+          <div class="rc-cfg-header-left">
+            <div class="rc-cfg-header-icon rc-fs-header-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.92)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+            </div>
+            <div>
+              <div class="rc-cfg-title">Filter</div>
+              <div class="rc-cfg-subtitle">Select a start date — the calendar shows 30 days and scrolls infinitely right</div>
+            </div>
+          </div>
+          <button class="rc-cfg-close" @click="filterSearchOpen = false" title="Close">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Body -->
+        <div class="rc-cfg-body rc-fs-body">
+
+          <!-- Selected start date display -->
+          <div class="rc-fs-range-bar rc-fs-range-bar--single">
+            <div class="rc-fs-range-slot is-active" :class="{ 'is-filled': !!filterSearch.startDate }">
+              <div class="rc-fs-range-label">Start Date</div>
+              <div class="rc-fs-range-val">{{ filterSearch.startDate ? formatDpDate(filterSearch.startDate) : 'Select date' }}</div>
+            </div>
+          </div>
+
+          <!-- Calendar -->
+          <div class="rc-fs-cal">
+            <!-- Month nav -->
+            <div class="rc-fs-cal-nav">
+              <button class="rc-fs-cal-nav-btn" @click="dpPrevMonth">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <span class="rc-fs-cal-month">{{ dpMonthLabel }}</span>
+              <button class="rc-fs-cal-nav-btn" @click="dpNextMonth">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+
+            <!-- Weekday headers -->
+            <div class="rc-fs-cal-grid">
+              <div v-for="wd in ['Su','Mo','Tu','We','Th','Fr','Sa']" :key="wd" class="rc-fs-cal-wd">{{ wd }}</div>
+
+              <!-- Day cells -->
+              <div
+                v-for="cell in dpCells"
+                :key="cell.key"
+                class="rc-fs-cal-day"
+                :class="{
+                  'is-empty':   !cell.iso,
+                  'is-today':   cell.iso === todayIso,
+                  'is-start':   cell.iso === filterSearch.startDate,
+                }"
+                @click="cell.iso && onDpDayClick(cell.iso)"
+                @mouseenter="cell.iso && (dpHover = cell.iso)"
+                @mouseleave="dpHover = ''"
+              >
+                <span v-if="cell.iso" class="rc-fs-cal-day-inner">{{ cell.day }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Open Availability -->
+          <div class="rc-fs-avail-row">
+            <div>
+              <div class="rc-fs-avail-label">Open Availability</div>
+              <div class="rc-fs-avail-sub">Show only rooms with open slots</div>
+            </div>
+            <button class="rc-cfg-toggle" :class="{ 'is-on': filterSearch.openAvailability }" @click="filterSearch.openAvailability = !filterSearch.openAvailability">
+              <span class="rc-cfg-toggle-thumb"></span>
+            </button>
+          </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="rc-cfg-footer">
+          <button class="rc-cfg-btn rc-cfg-btn--cancel" @click="resetFilterSearch">Reset</button>
+          <button class="rc-cfg-btn rc-cfg-btn--save rc-fs-search-btn" @click="submitFilterSearch">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/>
+            </svg>
+            Search
+          </button>
+        </div>
+      </div>
+    </div>
+  </Transition>
+
   <!-- Calendar Configuration Modal -->
   <Transition name="cfg-modal">
     <div v-if="calConfigOpen" class="rc-cfg-overlay" @pointerdown.self="calConfigOpen = false">
@@ -667,7 +785,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, toRef, reactive } from 'vue'
+import { ref, computed, watch, reactive } from 'vue'
 import type { Room, RoomSection, Reservation, CalendarConfig, CalendarFilter, NewResDragState, NewResPopover } from '../types'
 import { useSections } from '../composables/useSections'
 import { useCalendarDays } from '../composables/useCalendarDays'
@@ -703,9 +821,10 @@ const emit = defineEmits<{
   'date-range-changed': [payload: { startDate: string; endDate: string }]
   'new-reservation':    [payload: { roomId: string; checkIn: string; checkOut: string; type: 'room-plan' | 'single' | 'group' }]
   'calendar-config-saved': [payload: Record<string, unknown>]
+  'filter-search': [payload: { startDate: string; openAvailability: boolean }]
 }>()
 
-const DAY_COL_W = computed(() => props.config.dayColWidth ?? 80)
+const DAY_COL_W = computed(() => props.config.dayColWidth ?? 100)
 
 // Filter overrides (set via setFilter())
 const filterRoomColW            = ref<number | null>(null)
@@ -957,16 +1076,43 @@ const roomById = computed(() => {
   return map
 })
 
+// Internal date override — set when filter search is applied so the calendar
+// moves to the selected range without waiting for the parent to update the prop.
+const filterStartDateOverride   = ref<string | null>(null)
+const filterVisibleDaysOverride = ref<number | null>(null)
+// Extra days appended by infinite scroll (resets when filter changes)
+const infiniteExtraDays         = ref(0)
+const isInfiniteLoading         = ref(false)
+
+const effectiveConfig = computed(() => ({
+  ...props.config,
+  startDate:   filterStartDateOverride.value  ?? props.config.startDate,
+  visibleDays: (filterVisibleDaysOverride.value ?? props.config.visibleDays) + infiniteExtraDays.value,
+}))
+
+
 const { expandedSections, toggleSection } = useSections(localSections)
-const { visibleDays, weekHeaders }         = useCalendarDays(toRef(props, 'config'))
-const { dragState, isReverting, pendingMove, confirmMove, cancelMove, onRoomRowPointerenter, onBlockPointerdown } = useDragDrop(localReservations, DAY_COL_W, emit, toRef(props, 'config'), filterAllowHorizontalDrag, filterAllowVerticalDrag)
+const { visibleDays, weekHeaders }         = useCalendarDays(effectiveConfig)
+const { dragState, isReverting, pendingMove, confirmMove, cancelMove, onRoomRowPointerenter, onBlockPointerdown } = useDragDrop(localReservations, DAY_COL_W, emit, effectiveConfig, filterAllowHorizontalDrag, filterAllowVerticalDrag)
 const { roomBlocks, wrapRef, onScroll: _onScroll, stickyOffset } = useBlockLayout(
-  localReservations, dragState, toRef(props, 'config'), DAY_COL_W, ROOM_COL_W,
+  localReservations, dragState, effectiveConfig, DAY_COL_W, ROOM_COL_W,
 )
 const scrollLeft = ref(0)
+let infiniteScrollTimer: ReturnType<typeof setTimeout> | null = null
 function onScroll(e: Event) {
-  scrollLeft.value = (e.target as HTMLElement).scrollLeft
+  const el = e.target as HTMLElement
+  scrollLeft.value = el.scrollLeft
   _onScroll()
+  // Infinite scroll: show loader immediately, append 30 days after 1 s
+  if (!isInfiniteLoading.value && el.scrollLeft + el.clientWidth >= el.scrollWidth - DAY_COL_W.value * 5) {
+    isInfiniteLoading.value = true
+    if (infiniteScrollTimer) clearTimeout(infiniteScrollTimer)
+    infiniteScrollTimer = setTimeout(() => {
+      infiniteExtraDays.value += 30
+      isInfiniteLoading.value = false
+      infiniteScrollTimer = null
+    }, 1000)
+  }
 }
 const { tooltipTarget, tooltipStyle, showTooltip, moveTooltip, hideTooltip } = useTooltip()
 
@@ -1101,6 +1247,99 @@ function selectType(type: 'room-plan' | 'single' | 'group') {
   closePopover()
 }
 
+// ── Filter Search ─────────────────────────────────────────────────────────────
+const filterSearchOpen   = ref(false)
+const filterSearchActive = ref(false)
+
+const filterSearch = reactive({
+  startDate:        '',
+  openAvailability: false,
+})
+
+// Date picker state
+const dpHover = ref('')
+
+function dpTodayParts() {
+  const d = new Date()
+  return { year: d.getFullYear(), month: d.getMonth() }
+}
+const dpYear  = ref(dpTodayParts().year)
+const dpMonth = ref(dpTodayParts().month)
+
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
+const dpMonthLabel = computed(() => `${MONTH_NAMES[dpMonth.value]} ${dpYear.value}`)
+
+function dpPrevMonth() {
+  if (dpMonth.value === 0) { dpMonth.value = 11; dpYear.value-- }
+  else dpMonth.value--
+}
+function dpNextMonth() {
+  if (dpMonth.value === 11) { dpMonth.value = 0; dpYear.value++ }
+  else dpMonth.value++
+}
+
+const dpCells = computed(() => {
+  const firstDay = new Date(dpYear.value, dpMonth.value, 1).getDay()
+  const daysInMonth = new Date(dpYear.value, dpMonth.value + 1, 0).getDate()
+  const cells: { key: string; iso: string; day: number }[] = []
+  for (let i = 0; i < firstDay; i++) cells.push({ key: `e${i}`, iso: '', day: 0 })
+  for (let d = 1; d <= daysInMonth; d++) {
+    const iso = `${dpYear.value}-${String(dpMonth.value + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+    cells.push({ key: iso, iso, day: d })
+  }
+  return cells
+})
+
+function onDpDayClick(iso: string) {
+  filterSearch.startDate = iso
+}
+
+function formatDpDate(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  return `${MONTH_NAMES[m - 1].slice(0, 3)} ${d}, ${y}`
+}
+
+function openFilterSearch() {
+  // Navigate calendar to show startDate month if set, else today
+  const base = filterSearch.startDate || todayIso
+  const [y, m] = base.split('-').map(Number)
+  dpYear.value  = y
+  dpMonth.value = m - 1
+  filterSearchOpen.value = true
+}
+
+function resetFilterSearch() {
+  filterSearch.startDate        = ''
+  filterSearch.openAvailability = false
+  filterStartDateOverride.value   = null
+  filterVisibleDaysOverride.value = null
+  infiniteExtraDays.value         = 0
+  filterSearchActive.value = false
+  emit('filter-search', { startDate: '', openAvailability: false })
+  postFlutterMessage('filter-search', { startDate: '', openAvailability: false })
+  filterSearchOpen.value = false
+}
+
+function submitFilterSearch() {
+  filterSearchActive.value = !!(filterSearch.startDate || filterSearch.openAvailability)
+  const payload = {
+    startDate:        filterSearch.startDate,
+    openAvailability: filterSearch.openAvailability,
+  }
+  emit('filter-search', payload)
+  postFlutterMessage('filter-search', payload)
+  if (filterSearch.startDate) {
+    filterStartDateOverride.value   = filterSearch.startDate
+    filterVisibleDaysOverride.value = 30
+    infiniteExtraDays.value         = 0
+    const endDate = addDays(filterSearch.startDate, 29)
+    const datePayload = { startDate: filterSearch.startDate, endDate: endDate }
+    emit('date-range-changed', datePayload)
+    postFlutterMessage('date-range-changed', datePayload)
+  }
+  filterSearchOpen.value = false
+}
+
 defineExpose({
   goToDate(iso: string) {
     const payload = { startDate: iso, endDate: addDays(iso, props.config.visibleDays - 1) }
@@ -1171,7 +1410,8 @@ defineExpose({
 }
 
 .col-room { width: var(--rc-room-col-w, 170px); min-width: var(--rc-room-col-w, 170px); }
-.col-day  { width: 80px;  min-width: 80px; }
+.col-room--header { font-size: 14px; font-weight: 700; letter-spacing: 0.05em; }
+.col-day  { width: 100px; min-width: 100px; }
 
 .cal-table-positioner {
   position: relative;
@@ -1202,9 +1442,9 @@ defineExpose({
   z-index: 10;
   box-shadow: 1px 0 0 #e5e7eb, 4px 0 8px -2px rgba(0,0,0,0.06);
 }
-.cal-table thead tr:first-child th { position: sticky; top: 0; z-index: 11; }
-.cal-table thead tr:last-child  th { position: sticky; top: 28px; z-index: 11; }
-.cal-table thead th:first-child { z-index: 21; }
+.col-room .col-room--header { z-index: 21; }
+.cal-table thead tr:first-child th { position: sticky; top: 0; }
+.cal-table thead tr:last-child th { position: sticky; top: 28px; z-index: 6; }
 
 .cal-table th {
   background: #f9fafb;
@@ -1226,7 +1466,7 @@ defineExpose({
   font-size: 11px;
   letter-spacing: 0.04em;
 }
-.week-header { text-align: center !important; color: #9ca3af !important; font-weight: 400 !important; }
+.week-header { text-align: center !important; }
 .today-th {
   background: #f0fdf4 !important;
   color: #16a34a !important;
@@ -1255,6 +1495,7 @@ defineExpose({
   padding: 16px 10px!important;
   vertical-align: middle !important;
   display: table-cell;
+  background: #fff;
 }
 .room-row-info { display: flex; align-items: center; }
 .room-avatar {
@@ -1276,7 +1517,7 @@ defineExpose({
 .section-row { cursor: pointer; user-select: none; }
 .section-row td { height: 34px !important; }
 .section-row:hover .section-first { color: #374151 !important; }
-.section-row:hover .section-rest  { background: rgba(0,0,0,0.06) !important; }
+.section-row:hover .section-rest  { background: #efefef !important; }
 .section-first {
   padding: 0 12px 0 14px !important;
   font-size: 10px !important;
@@ -1284,13 +1525,13 @@ defineExpose({
   letter-spacing: 0.06em !important;
   text-transform: uppercase !important;
   color: #6b7280 !important;
-  background: rgba(0,0,0,0.04) !important;
+  background: #f5f5f5 !important;
   border-right: 1px solid #e5e7eb !important;
   vertical-align: middle !important;
   overflow: hidden !important;
 }
 .section-rest {
-  background: rgba(0,0,0,0.04) !important;
+  background: #f5f5f5 !important;
   border-right: none !important;
 }
 .section-dot {
@@ -1574,6 +1815,7 @@ defineExpose({
 /* Scrollbar */
 .cal-wrap::-webkit-scrollbar { width: 6px; height: 6px; }
 .cal-wrap::-webkit-scrollbar-track { background: #f9fafb; }
+.cal-wrap::-webkit-scrollbar-track:horizontal { margin-left: var(--rc-room-col-w, 170px); }
 .cal-wrap::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
 .cal-wrap::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 
@@ -1759,10 +2001,44 @@ defineExpose({
 
 /* Root wrapper */
 .rc-root {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
 }
+
+/* Infinite scroll loader */
+.rc-inf-loader {
+  position: absolute;
+  bottom: 24px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 13px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.06);
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b7280;
+  pointer-events: none;
+  z-index: 50;
+}
+.rc-inf-spinner {
+  animation: inf-spin 0.8s linear infinite;
+  color: #76b51b;
+  flex-shrink: 0;
+}
+@keyframes inf-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.inf-loader-enter-active { transition: opacity 0.15s ease-out, transform 0.15s cubic-bezier(0.23,1,0.32,1); }
+.inf-loader-leave-active { transition: opacity 0.15s ease-in, transform 0.12s ease-in; }
+.inf-loader-enter-from   { opacity: 0; transform: translateY(6px) scale(0.95); }
+.inf-loader-leave-to     { opacity: 0; transform: translateY(4px) scale(0.97); }
 
 /* Search toolbar */
 .rc-search-bar {
@@ -2146,6 +2422,161 @@ defineExpose({
     left: 0;
   }
   .rc-cfg-overlay { align-items: flex-end; }
+}
+
+/* Filter button */
+.rc-filter-btn {
+  display: flex; align-items: center; gap: 7px;
+  position: relative;
+  padding: 8px 14px;
+  background: #f3f4f6;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 9px;
+  font-size: 13px; font-weight: 600; color: #374151;
+  cursor: pointer; flex-shrink: 0; font-family: inherit;
+  transition: background 0.12s, border-color 0.12s,
+              transform 0.1s cubic-bezier(0.23, 1, 0.32, 1);
+  white-space: nowrap;
+  margin-left: auto;
+}
+@media (hover: hover) and (pointer: fine) {
+  .rc-filter-btn:hover { background: #e5e7eb; border-color: #d1d5db; }
+}
+.rc-filter-btn:active { transform: scale(0.97); }
+.rc-filter-btn.has-active { background: #f3fae8; border-color: #76b51b; color: #5e9016; }
+.rc-filter-dot {
+  position: absolute; top: 6px; right: 6px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #76b51b; border: 1.5px solid #ffffff;
+}
+
+/* Override config button's margin-left since filter button now owns it */
+.rc-config-btn { margin-left: 0; }
+
+/* Filter dialog sizing */
+.rc-fs-dialog { width: 380px; }
+.rc-fs-header-icon { background: #76b51b; }
+.rc-fs-body { padding: 0 !important; overflow: visible !important; }
+
+/* Range bar — selected date display */
+.rc-fs-range-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid #f3f4f6;
+}
+.rc-fs-range-bar--single { display: block; }
+.rc-fs-range-slot {
+  flex: 1; padding: 10px 14px; border-radius: 10px;
+  border: 1.5px solid #e5e7eb;
+  cursor: pointer; background: #fafafa;
+  transition: border-color 0.15s, background 0.15s;
+}
+.rc-fs-range-slot.is-active {
+  border-color: #76b51b; background: #fff;
+  box-shadow: 0 0 0 3px rgba(118,181,27,0.1);
+}
+.rc-fs-range-slot.is-filled { background: #fff; }
+.rc-fs-range-label {
+  font-size: 10px; font-weight: 600; color: #9ca3af;
+  text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px;
+}
+.rc-fs-range-val { font-size: 13px; font-weight: 600; color: #111827; }
+.rc-fs-range-slot:not(.is-filled) .rc-fs-range-val { color: #d1d5db; font-weight: 400; }
+
+/* Calendar */
+.rc-fs-cal { padding: 12px 20px 8px; }
+.rc-fs-cal-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.rc-fs-cal-month { font-size: 14px; font-weight: 700; color: #111827; letter-spacing: -0.01em; }
+.rc-fs-cal-nav-btn {
+  width: 30px; height: 30px; border-radius: 8px;
+  border: none; background: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: #6b7280;
+  transition: background 0.1s, color 0.1s, transform 0.1s cubic-bezier(0.23,1,0.32,1);
+}
+@media (hover: hover) and (pointer: fine) {
+  .rc-fs-cal-nav-btn:hover { background: #f3f4f6; color: #111827; }
+}
+.rc-fs-cal-nav-btn:active { transform: scale(0.9); }
+
+.rc-fs-cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.rc-fs-cal-wd {
+  text-align: center; font-size: 10.5px; font-weight: 600;
+  color: #9ca3af; padding: 4px 0 6px; letter-spacing: 0.02em;
+}
+.rc-fs-cal-day {
+  position: relative;
+  aspect-ratio: 1;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; border-radius: 8px;
+  transition: background 0.1s;
+}
+.rc-fs-cal-day.is-empty { pointer-events: none; }
+.rc-fs-cal-day-inner {
+  font-size: 13px; font-weight: 500; color: #374151;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; position: relative; z-index: 1;
+  transition: background 0.12s, color 0.12s;
+}
+@media (hover: hover) and (pointer: fine) {
+  .rc-fs-cal-day:not(.is-start):not(.is-end):not(.is-disabled):hover .rc-fs-cal-day-inner {
+    background: #f3f4f6; color: #111827;
+  }
+}
+.rc-fs-cal-day.is-today .rc-fs-cal-day-inner::after {
+  content: '';
+  position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%);
+  width: 4px; height: 4px; border-radius: 50%;
+  background: #76b51b;
+}
+.rc-fs-cal-day.is-start .rc-fs-cal-day-inner,
+.rc-fs-cal-day.is-end .rc-fs-cal-day-inner {
+  background: #76b51b; color: #fff; font-weight: 700;
+}
+.rc-fs-cal-day.is-today.is-start .rc-fs-cal-day-inner::after,
+.rc-fs-cal-day.is-today.is-end .rc-fs-cal-day-inner::after { background: rgba(255,255,255,0.6); }
+
+/* Range highlight band (unused — kept for future use) */
+.rc-fs-cal-day.is-range,
+.rc-fs-cal-day.is-hover-range {
+  background: #f3fae8; border-radius: 0;
+}
+.rc-fs-cal-day.is-range .rc-fs-cal-day-inner,
+.rc-fs-cal-day.is-hover-range .rc-fs-cal-day-inner { color: #5e9016; font-weight: 600; }
+.rc-fs-cal-day.is-range-start { border-radius: 8px 0 0 8px; background: #f3fae8; }
+.rc-fs-cal-day.is-range-end   { border-radius: 0 8px 8px 0; background: #f3fae8; }
+
+/* Disabled */
+.rc-fs-cal-day.is-disabled { pointer-events: none; }
+.rc-fs-cal-day.is-disabled .rc-fs-cal-day-inner { color: #e5e7eb; }
+
+/* Open Availability row */
+.rc-fs-avail-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 20px 16px;
+  border-top: 1px solid #f3f4f6;
+}
+.rc-fs-avail-label { font-size: 13px; font-weight: 600; color: #374151; }
+.rc-fs-avail-sub   { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+
+/* Search button */
+.rc-fs-search-btn { display: flex; align-items: center; gap: 6px; background: #76b51b; }
+@media (hover: hover) and (pointer: fine) {
+  .rc-fs-search-btn:hover { background: #5e9016; }
+}
+
+@media (pointer: coarse) {
+  .rc-filter-btn { margin-left: 0; font-size: 12px; padding: 7px 10px; gap: 0; }
+  .rc-filter-btn-text { display: none; }
+  .rc-fs-dialog { width: 100vw; max-width: 100vw; max-height: 92vh; border-radius: 18px 18px 0 0; position: fixed; bottom: 0; left: 0; }
+  .rc-fs-cal-day-inner { width: 36px; height: 36px; }
 }
 
 /* Dialog enter/leave transitions */
