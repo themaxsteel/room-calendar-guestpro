@@ -10,9 +10,7 @@ export function useBlockLayout(
   dragState: Ref<DragState | null>,
   config: Ref<CalendarConfig>,
   DAY_COL_W: Ref<number>,
-  ROOM_COL_W: Ref<number>,
 ) {
-  const scrollLeft = ref(0)
   const wrapRef = ref<HTMLElement | null>(null)
 
   const startMs = computed(() => new Date(config.value.startDate).getTime())
@@ -51,17 +49,5 @@ export function useBlockLayout(
     return blocksByRoom.value.get(roomId) ?? []
   }
 
-  function onScroll() {
-    scrollLeft.value = wrapRef.value?.scrollLeft ?? 0
-  }
-
-  function stickyOffset(block: BlockLayout): number {
-    const stickyEdge = ROOM_COL_W.value + 8
-    const blockScreenLeft = block.left - scrollLeft.value + ROOM_COL_W.value
-    const offset = blockScreenLeft < stickyEdge ? stickyEdge - blockScreenLeft : 0
-    const maxOffset = Math.max(0, block.width - 130 - 8)
-    return Math.min(offset, maxOffset)
-  }
-
-  return { roomBlocks, wrapRef, onScroll, stickyOffset }
+  return { roomBlocks, wrapRef }
 }

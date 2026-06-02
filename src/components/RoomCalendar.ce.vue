@@ -154,10 +154,7 @@
                   @mousemove="moveTooltip"
                   @mouseleave="hideTooltip"
                 >
-                  <div
-                    class="booking-inner"
-                    :style="{ left: stickyOffset(block) + 'px' }"
-                  >
+                  <div class="booking-inner">
                     <!-- Room Maintenance -->
                     <template v-if="block.status === 'ROOM_MAINTENANCE'">
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -1094,15 +1091,27 @@ const effectiveConfig = computed(() => ({
 const { expandedSections, toggleSection } = useSections(localSections)
 const { visibleDays, weekHeaders }         = useCalendarDays(effectiveConfig)
 const { dragState, isReverting, pendingMove, confirmMove, cancelMove, onRoomRowPointerenter, onBlockPointerdown } = useDragDrop(localReservations, DAY_COL_W, emit, effectiveConfig, filterAllowHorizontalDrag, filterAllowVerticalDrag)
-const { roomBlocks, wrapRef, onScroll: _onScroll, stickyOffset } = useBlockLayout(
-  localReservations, dragState, effectiveConfig, DAY_COL_W, ROOM_COL_W,
+const { roomBlocks, wrapRef } = useBlockLayout(
+  localReservations, dragState, effectiveConfig, DAY_COL_W,
 )
 const scrollLeft = ref(0)
 let infiniteScrollTimer: ReturnType<typeof setTimeout> | null = null
 function onScroll(e: Event) {
   const el = e.target as HTMLElement
-  scrollLeft.value = el.scrollLeft
-  _onScroll()
+  const sl = el.scrollLeft
+  scrollLeft.value = sl
+  // Directly update booking-inner transforms — bypasses Vue reactivity for smooth scrolling
+  const roomColW   = ROOM_COL_W.value
+  const stickyEdge = roomColW + 8
+  for (const inner of el.querySelectorAll<HTMLElement>('.booking-inner')) {
+    const block      = inner.parentElement as HTMLElement
+    const blockLeft  = parseFloat(block.style.left) || 0
+    const blockW     = parseFloat(block.style.width) || 0
+    const screenLeft = blockLeft - sl + roomColW
+    const offset     = screenLeft < stickyEdge ? stickyEdge - screenLeft : 0
+    const maxOffset  = Math.max(0, blockW - 100 - 8)
+    inner.style.transform = `translateX(${Math.min(offset, maxOffset)}px)`
+  }
   // Infinite scroll: show loader immediately, append 30 days after 1 s
   if (!isInfiniteLoading.value && el.scrollLeft + el.clientWidth >= el.scrollWidth - DAY_COL_W.value * 5) {
     isInfiniteLoading.value = true
@@ -1114,6 +1123,7 @@ function onScroll(e: Event) {
     }, 1000)
   }
 }
+
 const { tooltipTarget, tooltipStyle, showTooltip, moveTooltip, hideTooltip } = useTooltip()
 
 // ── New reservation drag-to-create ──────────────────────────────────────────
@@ -1617,8 +1627,7 @@ defineExpose({
 
 .booking-inner {
   position: absolute;
-  top: 0; bottom: 0;
-  left: 8px;
+  top: 0; bottom: 0; left: 8px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1626,6 +1635,7 @@ defineExpose({
   white-space: nowrap;
   pointer-events: none;
   color: var(--block-fg, #fff);
+  will-change: transform;
 }
 .booking-inner > svg { opacity: 0.75; }
 .b-texts { display: flex; flex-direction: column; justify-content: center; gap: 1px; }
