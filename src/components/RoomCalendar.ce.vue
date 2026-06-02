@@ -227,7 +227,7 @@
       </svg>
       <span>{{ formatDateLong(newResPreview.checkOut) }}</span>
     </div>
-    <div class="nrt-nights">{{ nightsBetween(newResPreview.checkIn, newResPreview.checkOut) }} malam</div>
+    <div class="nrt-nights">{{ nightsBetween(newResPreview.checkIn, newResPreview.checkOut) }} nights</div>
   </div>
 
   <!-- Create reservation popover -->
@@ -240,7 +240,7 @@
           <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
         </svg>
         {{ formatDateLong(newResPopover.checkOut) }}
-        &nbsp;·&nbsp;{{ nightsBetween(newResPopover.checkIn, newResPopover.checkOut) }} malam
+        &nbsp;·&nbsp;{{ nightsBetween(newResPopover.checkIn, newResPopover.checkOut) }} nights
       </div>
     </div>
     <div class="crp-divider"></div>
@@ -300,10 +300,15 @@
     <div v-if="pendingMove" class="rc-confirm-overlay" @mousedown.self="cancelMove">
       <div class="rc-confirm-dialog">
         <!-- Header -->
+        <button class="rcd-close" @click="cancelMove" aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
         <div class="rcd-header">
           <div class="rcd-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.2">
-              <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/>
             </svg>
           </div>
           <div>
@@ -312,36 +317,65 @@
           </div>
         </div>
 
-        <!-- Reservation info card -->
-        <div v-if="pendingMove" class="rcd-card">
-          <div class="rcd-guest">
-            <span class="rcd-guest-name">{{ pendingMove.snapshot.guestName }}</span>
-            <span class="rcd-folio">Folio #{{ pendingMove.snapshot.folioNumber }}</span>
+        <!-- Guest row -->
+        <div v-if="pendingMove" class="rcd-guest-card">
+          <div class="rcd-guest-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round">
+              <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+            </svg>
           </div>
-          <div class="rcd-divider"></div>
-          <!-- From → To rooms -->
-          <div class="rcd-move-row">
-            <div class="rcd-move-col">
-              <span class="rcd-move-label">From</span>
+          <span class="rcd-guest-name">{{ pendingMove.snapshot.guestName }}</span>
+          <span class="rcd-folio">Folio #{{ pendingMove.snapshot.folioNumber }}</span>
+        </div>
+
+        <!-- From / To card -->
+        <div v-if="pendingMove" class="rcd-move-card">
+          <div class="rcd-move-col">
+            <span class="rcd-move-label">FROM</span>
+            <div class="rcd-move-room-row">
               <span class="rcd-move-room">{{ roomById.get(pendingMove.from_room_id)?.name ?? pendingMove.from_room_id }}</span>
-              <span class="rcd-move-dates">{{ formatDateLong(pendingMove.snapshot.checkIn) }} → {{ formatDateLong(pendingMove.snapshot.checkOut) }}</span>
             </div>
-            <svg class="rcd-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2">
+            <div class="rcd-move-date-row">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round">
+                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              <span class="rcd-move-dates">{{ formatDateRange(pendingMove.snapshot.checkIn, pendingMove.snapshot.checkOut) }}</span>
+            </div>
+          </div>
+
+          <div class="rcd-arrow-circle">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.2" stroke-linecap="round">
               <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
             </svg>
-            <div class="rcd-move-col">
-              <span class="rcd-move-label">To</span>
+          </div>
+
+          <div class="rcd-move-col">
+            <span class="rcd-move-label">TO</span>
+            <div class="rcd-move-room-row">
               <span class="rcd-move-room rcd-move-room--new">{{ roomById.get(pendingMove.room_id)?.name ?? pendingMove.room_id }}</span>
-              <span class="rcd-move-dates">{{ formatDateLong(pendingMove.arrival_date) }} → {{ formatDateLong(pendingMove.departure_date) }}</span>
+            </div>
+            <div class="rcd-move-date-row">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round">
+                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              <span class="rcd-move-dates">{{ formatDateRange(pendingMove.arrival_date, pendingMove.departure_date) }}</span>
             </div>
           </div>
-          <div class="rcd-divider"></div>
-          <!-- Nights + paid -->
-          <div class="rcd-meta">
+        </div>
+
+        <!-- Nights + paid -->
+        <div v-if="pendingMove" class="rcd-meta-card">
+          <div class="rcd-meta-left">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
             <span class="rcd-nights">{{ nightsBetween(pendingMove.arrival_date, pendingMove.departure_date) }} nights</span>
-            <span class="rcd-paid" :class="{ 'rcd-paid--full': pendingMove.snapshot.paidPercent === 100 }">
-              Paid {{ pendingMove.snapshot.paidPercent }}%
-            </span>
+          </div>
+          <div class="rcd-paid" :class="{ 'rcd-paid--full': pendingMove.snapshot.paidPercent === 100 }">
+            <svg v-if="pendingMove.snapshot.paidPercent === 100" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/>
+            </svg>
+            Paid {{ pendingMove.snapshot.paidPercent }}%
           </div>
         </div>
 
@@ -639,7 +673,7 @@ import { useSections } from '../composables/useSections'
 import { useCalendarDays } from '../composables/useCalendarDays'
 import { useBlockLayout } from '../composables/useBlockLayout'
 import { useDragDrop } from '../composables/useDragDrop'
-import { addDays, todayIso, formatDateLong, nightsBetween } from '../composables/useDateHelpers'
+import { addDays, todayIso, formatDateLong, formatDateRange, nightsBetween } from '../composables/useDateHelpers'
 import { useTooltip } from '../composables/useTooltip'
 import { transformRoomCharting, transformReservations } from '../composables/useGuestProAdapter'
 import type { GuestProChartingRoom, GuestProReservationItem, GuestProReservationResponse } from '../composables/useGuestProAdapter'
@@ -1530,26 +1564,46 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(2px);
+  background: rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(3px);
 }
 .rc-confirm-dialog {
+  position: relative;
   background: #ffffff;
   border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  padding: 22px 24px 20px;
-  width: 380px;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.14), 0 4px 16px rgba(0,0,0,0.08);
+  border-radius: 18px;
+  padding: 24px 22px 20px;
+  width: 360px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.16), 0 4px 16px rgba(0,0,0,0.08);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
+/* X close button */
+.rcd-close {
+  position: absolute;
+  top: 16px; right: 16px;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: #f3f4f6;
+  color: #6b7280;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: background 0.12s ease-out, transform 0.1s cubic-bezier(0.23, 1, 0.32, 1);
+}
+@media (hover: hover) and (pointer: fine) {
+  .rcd-close:hover { background: #e5e7eb; color: #374151; }
+}
+.rcd-close:active { transform: scale(0.93); }
+
 .rcd-header {
   display: flex; align-items: flex-start; gap: 14px;
+  padding-right: 28px;
 }
 .rcd-icon {
-  width: 44px; height: 44px; flex-shrink: 0;
-  border-radius: 11px;
+  width: 46px; height: 46px; flex-shrink: 0;
+  border-radius: 50%;
   background: #fef3c7;
   display: flex; align-items: center; justify-content: center;
 }
@@ -1557,54 +1611,101 @@ defineExpose({
   font-size: 15px; font-weight: 700; color: #111827;
   letter-spacing: 0.01em; margin-bottom: 3px;
 }
-.rcd-subtitle { font-size: 12.5px; color: #6b7280; line-height: 1.4; }
+.rcd-subtitle { font-size: 12px; color: #6b7280; line-height: 1.45; }
 
-/* Info card */
-.rcd-card {
-  background: #f9fafb;
+/* Guest card */
+.rcd-guest-card {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: #ffffff;
   border: 1px solid #e5e7eb;
-  border-radius: 11px;
-  padding: 13px 15px;
-  display: flex; flex-direction: column; gap: 10px;
+  border-radius: 10px;
+  padding: 11px 13px;
 }
-.rcd-guest { display: flex; align-items: baseline; gap: 8px; }
-.rcd-guest-name { font-size: 14px; font-weight: 700; color: #111827; }
-.rcd-folio { font-size: 11px; color: #9ca3af; }
-.rcd-divider { height: 1px; background: #e5e7eb; }
-.rcd-move-row {
-  display: flex; align-items: center; gap: 10px;
+.rcd-guest-icon {
+  width: 28px; height: 28px; flex-shrink: 0;
+  border-radius: 50%;
+  background: #f3f4f6;
+  display: flex; align-items: center; justify-content: center;
+}
+.rcd-guest-name { font-size: 14px; font-weight: 700; color: #111827; flex: 1; }
+.rcd-folio { font-size: 11.5px; color: #9ca3af; white-space: nowrap; }
+
+/* From / To card */
+.rcd-move-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px 13px;
 }
 .rcd-move-col {
-  flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0;
+  flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0;
 }
 .rcd-move-label {
-  font-size: 10px; font-weight: 600; color: #9ca3af;
-  text-transform: uppercase; letter-spacing: 0.06em;
+  font-size: 9.5px; font-weight: 700; color: #9ca3af;
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.rcd-move-room-row {
+  display: flex; align-items: center; gap: 5px;
 }
 .rcd-move-room {
-  font-size: 12.5px; font-weight: 600; color: #374151;
+  font-size: 14px; font-weight: 700; color: #111827;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .rcd-move-room--new { color: #d97706; }
-.rcd-move-dates { font-size: 10.5px; color: #9ca3af; white-space: nowrap; }
-.rcd-arrow { flex-shrink: 0; }
-.rcd-meta { display: flex; justify-content: space-between; align-items: center; }
-.rcd-nights { font-size: 11px; color: #6b7280; }
-.rcd-paid { font-size: 11px; color: #f59e0b; font-weight: 600; }
+.rcd-move-date-row {
+  display: flex; align-items: center; gap: 5px;
+}
+.rcd-move-dates { font-size: 11px; color: #6b7280; white-space: nowrap; }
+.rcd-arrow-circle {
+  flex-shrink: 0;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid #e5e7eb;
+  background: #ffffff;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* Nights + paid */
+.rcd-meta-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 13px;
+}
+.rcd-meta-left { display: flex; align-items: center; gap: 6px; }
+.rcd-nights { font-size: 12px; font-weight: 500; color: #374151; }
+.rcd-paid {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 600;
+  color: #f59e0b;
+  border: 1.5px solid currentColor;
+  border-radius: 20px;
+  padding: 3px 10px;
+}
 .rcd-paid--full { color: #16a34a; }
 
 .rcd-actions {
-  display: flex; gap: 9px; justify-content: flex-end;
+  display: flex; gap: 9px;
+  margin-top: 4px;
 }
 .rcd-btn {
-  padding: 9px 20px;
-  border-radius: 9px;
-  font-size: 13px; font-weight: 600;
+  flex: 1;
+  padding: 11px 20px;
+  border-radius: 10px;
+  font-size: 13.5px; font-weight: 600;
   border: none; cursor: pointer;
-  transition: background 0.1s, transform 0.1s cubic-bezier(0.23, 1, 0.32, 1);
+  transition: background 0.12s ease-out, transform 0.1s cubic-bezier(0.23, 1, 0.32, 1);
 }
 .rcd-btn:active { transform: scale(0.97); }
-.rcd-btn--cancel { background: #f3f4f6; color: #374151; }
+.rcd-btn--cancel { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
 @media (hover: hover) and (pointer: fine) {
   .rcd-btn--cancel:hover { background: #e5e7eb; }
 }
