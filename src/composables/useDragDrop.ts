@@ -21,6 +21,12 @@ interface PendingMove {
   snapshot: Reservation
 }
 
+function postFlutterMessage(type: string, payload: unknown) {
+  if (typeof window !== 'undefined' && (window as any).Flutter) {
+    (window as any).Flutter.postMessage(JSON.stringify({ type, payload }))
+  }
+}
+
 export function useDragDrop(
   localReservations: Ref<Reservation[]>,
   DAY_COL_W: Ref<number>,
@@ -33,7 +39,7 @@ export function useDragDrop(
   const isReverting  = ref(false)
   const pendingMove  = ref<PendingMove | null>(null)
 
-  function onRoomRowMouseenter(roomId: string) {
+  function onRoomRowPointerenter(roomId: string) {
     if (dragState.value && allowVerticalDrag.value) {
       dragState.value.targetRoomId = roomId
     }
@@ -43,14 +49,16 @@ export function useDragDrop(
     if (!pendingMove.value) return
     const p = pendingMove.value
     pendingMove.value = null
-    emit('reservation-moved', {
+    const payload = {
       id:             p.id,
       room_id:        p.room_id,
       arrival_date:   p.arrival_date,
       departure_date: p.departure_date,
       company_id:     p.company_id,
       from_room_id:   p.from_room_id,
-    })
+    }
+    emit('reservation-moved', payload)
+    postFlutterMessage('reservation-moved', payload)
   }
 
   function cancelMove() {
@@ -61,13 +69,19 @@ export function useDragDrop(
     if (idx !== -1) localReservations.value[idx] = snap
   }
 
-  function onBlockMousedown(event: MouseEvent, block: BlockLayout, room: Room) {
+  function onBlockPointerdown(event: PointerEvent, block: BlockLayout, room: Room) {
+    if (event.button !== 0 && event.pointerType !== 'touch') return
     event.preventDefault()
 
     if (!allowHorizontalDrag.value && !allowVerticalDrag.value) {
-      emit('reservation-clicked', { reservation: block, room })
+      const payload = { reservation: block, room }
+      emit('reservation-clicked', payload)
+      postFlutterMessage('reservation-clicked', payload)
       return
     }
+
+    const el = event.currentTarget as HTMLElement
+    el.setPointerCapture(event.pointerId)
 
     const ds: DragState = {
       blockId:      block.id,
@@ -81,15 +95,15 @@ export function useDragDrop(
     const origCheckIn  = block.checkIn
     const origCheckOut = block.checkOut
 
-    function onMousemove(e: MouseEvent) {
+    function onPointermove(e: PointerEvent) {
       if (!allowHorizontalDrag.value) return
       const snapped = Math.round((e.clientX - ds.startX) / DAY_COL_W.value)
       if (dragState.value) dragState.value.deltaDays = snapped
     }
 
-    function onMouseup() {
-      document.removeEventListener('mousemove', onMousemove)
-      document.removeEventListener('mouseup',   onMouseup)
+    function onPointerup() {
+      el.removeEventListener('pointermove', onPointermove)
+      el.removeEventListener('pointerup',   onPointerup)
 
       const finalDelta = dragState.value?.deltaDays    ?? 0
       const newRoomId  = dragState.value?.targetRoomId ?? block.roomId
@@ -106,11 +120,8 @@ export function useDragDrop(
         })
 
         if (hasConflict) {
-          const ds = dragState.value!
-          ds.targetRoomId = ds.roomId
           isReverting.value = true
           requestAnimationFrame(() => {
-            if (dragState.value) dragState.value.deltaDays = 0
             setTimeout(() => {
               dragState.value   = null
               isReverting.value = false
@@ -119,7 +130,6 @@ export function useDragDrop(
           return
         }
 
-        // snapshot original state for possible cancel
         const snapshot = { ...localReservations.value.find(r => r.id === block.id)! }
 
         const idx = localReservations.value.findIndex(r => r.id === block.id)
@@ -142,16 +152,15 @@ export function useDragDrop(
           snapshot,
         }
       } else {
-        emit('reservation-clicked', {
-          reservation: { ...block, checkIn: origCheckIn, checkOut: origCheckOut },
-          room,
-        })
+        const payload = { reservation: { ...block, checkIn: origCheckIn, checkOut: origCheckOut }, room }
+        emit('reservation-clicked', payload)
+        postFlutterMessage('reservation-clicked', payload)
       }
     }
 
-    document.addEventListener('mousemove', onMousemove)
-    document.addEventListener('mouseup',   onMouseup)
+    el.addEventListener('pointermove', onPointermove)
+    el.addEventListener('pointerup',   onPointerup)
   }
 
-  return { dragState, isReverting, pendingMove, confirmMove, cancelMove, onRoomRowMouseenter, onBlockMousedown }
+  return { dragState, isReverting, pendingMove, confirmMove, cancelMove, onRoomRowPointerenter, onBlockPointerdown }
 }

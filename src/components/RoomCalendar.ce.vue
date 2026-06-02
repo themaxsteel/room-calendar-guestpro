@@ -33,7 +33,7 @@
         <circle cx="12" cy="12" r="3"/>
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
       </svg>
-      Calendar Configuration
+      <span class="rc-config-btn-text">Calendar Configuration</span>
     </button>
   </div>
 
@@ -43,7 +43,7 @@
         class="room-col-resize-bar"
         :class="{ 'is-resizing': isResizingRoomCol }"
         :style="{ left: (ROOM_COL_W - 3 + scrollLeft) + 'px' }"
-        @mousedown.stop.prevent="onRoomColResizeStart"
+        @pointerdown.stop.prevent="onRoomColResizeStart"
       ></div>
       <table class="cal-table" :class="{ 'is-dragging': dragState !== null }">
       <thead>
@@ -96,12 +96,12 @@
               'row-search-match': searchQuery && matchingRoomIds.has(room.id),
               'row--with-balance': filterShowTotalBalance,
             }"
-            @mouseenter="onRoomRowMouseenter(room.id)"
+            @pointerenter="onRoomRowPointerenter(room.id)"
           >
             <td
               class="room-cell col-room"
               :class="{ 'room-cell--draggable': filterCalendarType === 'normal' && filterAllowVerticalDrag }"
-              @mousedown.left.stop="onRoomCellMousedown($event, room.id, roomIdx)"
+              @pointerdown.stop="onRoomCellPointerdown($event, room.id, roomIdx)"
             >
               <div class="room-row-info">
                 <span v-if="filterCalendarType === 'normal' && filterAllowVerticalDrag" class="room-drag-handle" aria-hidden="true">
@@ -128,7 +128,7 @@
               :key="day.iso"
               :class="{ 'cell-droppable': !dragState }"
               :style="idx === 0 ? 'overflow:visible; position:relative; z-index:5;' : ''"
-              @mousedown.left="onCellMousedown($event, room, idx)"
+              @pointerdown="onCellPointerdown($event, room, idx)"
             >
               <!-- Render booking blocks anchored to their start-day cell -->
               <template v-if="idx === 0">
@@ -141,7 +141,7 @@
                     left: block.left + 'px',
                     width: block.width + 'px',
                   }"
-                  @mousedown.left.stop="onBlockMousedown($event, block, room)"
+                  @pointerdown.stop.prevent="onBlockPointerdown($event, block, room)"
                   @mouseenter="showTooltip($event, block, room)"
                   @mousemove="moveTooltip"
                   @mouseleave="hideTooltip"
@@ -297,7 +297,7 @@
 
   <!-- Move confirmation dialog -->
   <Transition name="confirm-dialog">
-    <div v-if="pendingMove" class="rc-confirm-overlay" @mousedown.self="cancelMove">
+    <div v-if="pendingMove" class="rc-confirm-overlay" @pointerdown.self="cancelMove">
       <div class="rc-confirm-dialog">
         <!-- Header -->
         <button class="rcd-close" @click="cancelMove" aria-label="Close">
@@ -434,7 +434,7 @@
   </div>
   <!-- Calendar Configuration Modal -->
   <Transition name="cfg-modal">
-    <div v-if="calConfigOpen" class="rc-cfg-overlay" @mousedown.self="calConfigOpen = false">
+    <div v-if="calConfigOpen" class="rc-cfg-overlay" @pointerdown.self="calConfigOpen = false">
       <div class="rc-cfg-dialog">
         <!-- Header -->
         <div class="rc-cfg-header">
@@ -678,6 +678,12 @@ import { useTooltip } from '../composables/useTooltip'
 import { transformRoomCharting, transformReservations } from '../composables/useGuestProAdapter'
 import type { GuestProChartingRoom, GuestProReservationItem, GuestProReservationResponse } from '../composables/useGuestProAdapter'
 
+function postFlutterMessage(type: string, payload: unknown) {
+  if (typeof window !== 'undefined' && (window as any).Flutter) {
+    (window as any).Flutter.postMessage(JSON.stringify({ type, payload }))
+  }
+}
+
 const props = withDefaults(defineProps<{
   sections?: RoomSection[]
   reservations?: Reservation[]
@@ -784,7 +790,9 @@ function saveCalConfig() {
   filterShowBedName.value          = calConfig.show_bed_type_after_room_name === 1
   filterShowReservationDetail.value = calConfig.calender_show_hover_tooltips === 1
   filterRoomColW.value             = calConfig.calender_room_column
-  emit('calendar-config-saved', { ...calConfig })
+  const cfg = { ...calConfig }
+  emit('calendar-config-saved', cfg)
+  postFlutterMessage('calendar-config-saved', cfg)
   calConfigOpen.value = false
 }
 
@@ -792,23 +800,24 @@ const resizedRoomColW   = ref<number | null>(null)
 const isResizingRoomCol = ref(false)
 const ROOM_COL_W = computed(() => resizedRoomColW.value ?? filterRoomColW.value ?? props.config.roomColWidth ?? 170)
 
-function onRoomColResizeStart(e: MouseEvent) {
+function onRoomColResizeStart(e: PointerEvent) {
   const startX = e.clientX
   const startW = ROOM_COL_W.value
   const MIN_W  = 100
   const MAX_W  = 400
   isResizingRoomCol.value = true
+  ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
 
-  function onMove(ev: MouseEvent) {
+  function onMove(ev: PointerEvent) {
     resizedRoomColW.value = Math.min(MAX_W, Math.max(MIN_W, startW + ev.clientX - startX))
   }
   function onUp() {
     isResizingRoomCol.value = false
-    document.removeEventListener('mousemove', onMove)
-    document.removeEventListener('mouseup', onUp)
+    document.removeEventListener('pointermove', onMove)
+    document.removeEventListener('pointerup', onUp)
   }
-  document.addEventListener('mousemove', onMove)
-  document.addEventListener('mouseup', onUp)
+  document.addEventListener('pointermove', onMove)
+  document.addEventListener('pointerup', onUp)
 }
 
 // ── Search ────────────────────────────────────────────────────────────────────
@@ -896,28 +905,30 @@ const displaySections = computed((): RoomSection[] => {
 // ── Row drag-to-reorder (normal mode only) ────────────────────────────────────
 const rowDragState = ref<{ roomId: string; fromIdx: number; toIdx: number } | null>(null)
 
-function onRoomCellMousedown(event: MouseEvent, roomId: string, roomIdx: number) {
+function onRoomCellPointerdown(event: PointerEvent, roomId: string, roomIdx: number) {
+  if (event.button !== 0 && event.pointerType !== 'touch') return
   if (filterCalendarType.value !== 'normal') return
   if (!filterAllowVerticalDrag.value) return
   if (dragState.value) return
   event.stopPropagation()
   event.preventDefault()
+  ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
 
   const startY = event.clientY
   const snapshotIds = displaySections.value[0]?.rooms.map(r => r.id) ?? []
   const totalRooms = snapshotIds.length
   rowDragState.value = { roomId, fromIdx: roomIdx, toIdx: roomIdx }
 
-  function onMousemove(e: MouseEvent) {
+  function onPointermove(e: PointerEvent) {
     if (!rowDragState.value) return
     const delta = e.clientY - startY
     const newIdx = Math.max(0, Math.min(totalRooms - 1, roomIdx + Math.round(delta / 48)))
     rowDragState.value = { ...rowDragState.value, toIdx: newIdx }
   }
 
-  function onMouseup() {
-    document.removeEventListener('mousemove', onMousemove)
-    document.removeEventListener('mouseup', onMouseup)
+  function onPointerup() {
+    document.removeEventListener('pointermove', onPointermove)
+    document.removeEventListener('pointerup', onPointerup)
     const state = rowDragState.value
     rowDragState.value = null
     if (!state || state.fromIdx === state.toIdx) return
@@ -927,8 +938,8 @@ function onRoomCellMousedown(event: MouseEvent, roomId: string, roomIdx: number)
     filterRoomOrder.value = ids
   }
 
-  document.addEventListener('mousemove', onMousemove)
-  document.addEventListener('mouseup', onMouseup)
+  document.addEventListener('pointermove', onPointermove)
+  document.addEventListener('pointerup', onPointerup)
 }
 
 function formatBalance(amount: number): string {
@@ -948,14 +959,14 @@ const roomById = computed(() => {
 
 const { expandedSections, toggleSection } = useSections(localSections)
 const { visibleDays, weekHeaders }         = useCalendarDays(toRef(props, 'config'))
-const { dragState, isReverting, pendingMove, confirmMove, cancelMove, onRoomRowMouseenter, onBlockMousedown } = useDragDrop(localReservations, DAY_COL_W, emit, toRef(props, 'config'), filterAllowHorizontalDrag, filterAllowVerticalDrag)
+const { dragState, isReverting, pendingMove, confirmMove, cancelMove, onRoomRowPointerenter, onBlockPointerdown } = useDragDrop(localReservations, DAY_COL_W, emit, toRef(props, 'config'), filterAllowHorizontalDrag, filterAllowVerticalDrag)
 const { roomBlocks, wrapRef, onScroll: _onScroll, stickyOffset } = useBlockLayout(
   localReservations, dragState, toRef(props, 'config'), DAY_COL_W, ROOM_COL_W,
 )
 const scrollLeft = ref(0)
 function onScroll(e: Event) {
   scrollLeft.value = (e.target as HTMLElement).scrollLeft
-  _onScroll(e)
+  _onScroll()
 }
 const { tooltipTarget, tooltipStyle, showTooltip, moveTooltip, hideTooltip } = useTooltip()
 
@@ -1011,7 +1022,10 @@ const popoverStyle = computed(() => {
   }
 })
 
-function onCellMousedown(event: MouseEvent, room: Room, dayIdx: number) {
+function onCellPointerdown(event: PointerEvent, room: Room, dayIdx: number) {
+  // On touch, skip drag-to-create so native scroll works freely
+  if (event.pointerType === 'touch') return
+  if (event.button !== 0) return
   if (dragState.value) return
   closePopover()
   event.preventDefault()
@@ -1027,7 +1041,7 @@ function onCellMousedown(event: MouseEvent, room: Room, dayIdx: number) {
 
   let hasDragged = false
 
-  function onMousemove(e: MouseEvent) {
+  function onPointermove(e: PointerEvent) {
     if (!newResDrag.value) return
     const totalDeltaPx = e.clientX - startClientX
     if (!hasDragged && Math.abs(totalDeltaPx) < 6) return
@@ -1037,9 +1051,9 @@ function onCellMousedown(event: MouseEvent, room: Room, dayIdx: number) {
     newResDrag.value.currentDayIdx = Math.max(0, Math.min(visibleDays.value.length - 1, dayIdx + deltaIdx))
   }
 
-  function onMouseup() {
-    document.removeEventListener('mousemove', onMousemove)
-    document.removeEventListener('mouseup',   onMouseup)
+  function onPointerup() {
+    document.removeEventListener('pointermove', onPointermove)
+    document.removeEventListener('pointerup',   onPointerup)
     if (!hasDragged) {
       newResDrag.value = null
       return
@@ -1056,19 +1070,18 @@ function onCellMousedown(event: MouseEvent, room: Room, dayIdx: number) {
         checkOut: preview.checkOut,
         showResSub: false,
       }
-      // close on next outside click
       requestAnimationFrame(() => {
-        document.addEventListener('mousedown', onOutsideClick)
+        document.addEventListener('pointerdown', onOutsideClick)
       })
     }
     newResDrag.value = null
   }
 
-  document.addEventListener('mousemove', onMousemove)
-  document.addEventListener('mouseup',   onMouseup)
+  document.addEventListener('pointermove', onPointermove)
+  document.addEventListener('pointerup',   onPointerup)
 }
 
-function onOutsideClick(e: MouseEvent) {
+function onOutsideClick(e: PointerEvent) {
   const el = (e.target as HTMLElement).closest?.('.rc-create-popover')
   if (!el) closePopover()
 }
@@ -1076,22 +1089,28 @@ function onOutsideClick(e: MouseEvent) {
 function closePopover() {
   newResPopover.value  = null
   frozenPreview.value  = null
-  document.removeEventListener('mousedown', onOutsideClick)
+  document.removeEventListener('pointerdown', onOutsideClick)
 }
 
 function selectType(type: 'room-plan' | 'single' | 'group') {
   const p = newResPopover.value
   if (!p) return
-  emit('new-reservation', { roomId: p.roomId, checkIn: p.checkIn, checkOut: p.checkOut, type })
+  const payload = { roomId: p.roomId, checkIn: p.checkIn, checkOut: p.checkOut, type }
+  emit('new-reservation', payload)
+  postFlutterMessage('new-reservation', payload)
   closePopover()
 }
 
 defineExpose({
   goToDate(iso: string) {
-    emit('date-range-changed', { startDate: iso, endDate: addDays(iso, props.config.visibleDays - 1) })
+    const payload = { startDate: iso, endDate: addDays(iso, props.config.visibleDays - 1) }
+    emit('date-range-changed', payload)
+    postFlutterMessage('date-range-changed', payload)
   },
   goToToday() {
-    emit('date-range-changed', { startDate: todayIso, endDate: addDays(todayIso, props.config.visibleDays - 1) })
+    const payload = { startDate: todayIso, endDate: addDays(todayIso, props.config.visibleDays - 1) }
+    emit('date-range-changed', payload)
+    postFlutterMessage('date-range-changed', payload)
   },
   setData(chartingRooms: GuestProChartingRoom[]) {
     localSections.value = transformRoomCharting(chartingRooms)
@@ -1117,7 +1136,9 @@ defineExpose({
     if (filter.allowVerticalDrag     !== undefined) filterAllowVerticalDrag.value    = filter.allowVerticalDrag
     if (filter.startDate !== undefined) {
       const end = filter.endDate ?? addDays(filter.startDate, props.config.visibleDays - 1)
-      emit('date-range-changed', { startDate: filter.startDate, endDate: end })
+      const payload = { startDate: filter.startDate, endDate: end }
+      emit('date-range-changed', payload)
+      postFlutterMessage('date-range-changed', payload)
     }
   },
 })
@@ -2082,6 +2103,50 @@ defineExpose({
 }
 .cfg-modal-enter-from .rc-cfg-dialog { transform: scale(0.95) translateY(8px); opacity: 0; }
 .cfg-modal-leave-to .rc-cfg-dialog { transform: scale(0.97); opacity: 0; }
+
+/* ── Touch / Mobile ─────────────────────────────────────────────────────────── */
+
+/* Allow native two-finger scroll on the grid; individual draggable elements opt out below */
+.cal-wrap { touch-action: pan-x pan-y; }
+
+/* Booking blocks opt out of native scroll so pointer capture works during drag */
+.booking-block { touch-action: none; }
+
+/* Hide the mouse-only resize bar on touch devices */
+@media (pointer: coarse) {
+  .room-col-resize-bar { display: none; }
+  .room-drag-handle { display: none; }
+
+  /* Slightly larger tap targets for room rows */
+  .cal-table td { height: 56px; }
+  .section-row td { height: 44px !important; }
+  .row--with-balance td { height: 80px; }
+
+  /* Toolbar: search field + config button on one row */
+  .rc-search-bar { flex-wrap: wrap; gap: 8px; }
+  .rc-search-field { flex: 1; min-width: 0; }
+  .rc-config-btn { margin-left: 0; flex-shrink: 0; font-size: 12px; padding: 7px 10px; gap: 0; }
+  .rc-config-btn-text { display: none; }
+
+  /* Move dialog — full-width on small screens */
+  .rc-confirm-dialog {
+    width: calc(100vw - 24px);
+    padding: 20px 16px 16px;
+    border-radius: 14px;
+  }
+
+  /* Config dialog — full-height sheet on mobile */
+  .rc-cfg-dialog {
+    width: 100vw;
+    max-width: 100vw;
+    max-height: 92vh;
+    border-radius: 18px 18px 0 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+  }
+  .rc-cfg-overlay { align-items: flex-end; }
+}
 
 /* Dialog enter/leave transitions */
 .confirm-dialog-enter-active {
