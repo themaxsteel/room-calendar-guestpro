@@ -1,9 +1,9 @@
-<template>
+﻿<template>
   <div class="rc-root" :style="calConfigStyle">
   <!-- Search toolbar -->
   <div class="rc-search-bar">
     <div class="rc-search-field" :class="{ 'is-active': searchActive }">
-      <svg class="rc-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+      <svg class="rc-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
         <circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/>
       </svg>
       <input
@@ -29,7 +29,7 @@
       </span>
     </Transition>
     <button class="rc-config-btn" @click="openCalConfig" title="Calendar Configuration">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="3"/>
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
       </svg>
@@ -38,7 +38,14 @@
   </div>
 
   <div class="cal-wrap" ref="wrapRef" @scroll="onScroll">
-    <table class="cal-table" :class="{ 'is-dragging': dragState !== null }">
+    <div class="cal-table-positioner">
+      <div
+        class="room-col-resize-bar"
+        :class="{ 'is-resizing': isResizingRoomCol }"
+        :style="{ left: (ROOM_COL_W - 3 + scrollLeft) + 'px' }"
+        @mousedown.stop.prevent="onRoomColResizeStart"
+      ></div>
+      <table class="cal-table" :class="{ 'is-dragging': dragState !== null }">
       <thead>
         <!-- Week header row -->
         <tr>
@@ -200,12 +207,13 @@
         </template>
       </tbody>
     </table>
+    </div><!-- /.cal-table-positioner -->
   </div>
 
   <!-- New reservation drag tooltip (white) -->
   <div v-if="newResPreview && newResDrag?.isActive" class="rc-newres-tooltip" :style="newResTooltipStyle">
     <div class="nrt-room">
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#76b51b" stroke-width="2.5">
         <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
       </svg>
       {{ newResPreview.roomName }}
@@ -704,6 +712,7 @@ const calConfig = reactive({
 })
 
 const calConfigStyle = computed(() => ({
+  '--rc-room-col-w': ROOM_COL_W.value + 'px',
   '--rc-bg-reservation': calConfig.background_color_reservation,
   '--rc-bg-tentative':   calConfig.background_color_tentative,
   '--rc-bg-inhouse':     calConfig.background_color_inhouse,
@@ -752,7 +761,28 @@ function saveCalConfig() {
   calConfigOpen.value = false
 }
 
-const ROOM_COL_W = computed(() => filterRoomColW.value ?? props.config.roomColWidth ?? 170)
+const resizedRoomColW   = ref<number | null>(null)
+const isResizingRoomCol = ref(false)
+const ROOM_COL_W = computed(() => resizedRoomColW.value ?? filterRoomColW.value ?? props.config.roomColWidth ?? 170)
+
+function onRoomColResizeStart(e: MouseEvent) {
+  const startX = e.clientX
+  const startW = ROOM_COL_W.value
+  const MIN_W  = 100
+  const MAX_W  = 400
+  isResizingRoomCol.value = true
+
+  function onMove(ev: MouseEvent) {
+    resizedRoomColW.value = Math.min(MAX_W, Math.max(MIN_W, startW + ev.clientX - startX))
+  }
+  function onUp() {
+    isResizingRoomCol.value = false
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+  }
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
+}
 
 // ── Search ────────────────────────────────────────────────────────────────────
 const searchQuery    = ref('')
@@ -820,7 +850,7 @@ const displaySections = computed((): RoomSection[] => {
     const rooms = reservedRooms
       ? orderedRooms.value.filter(r => reservedRooms.has(r.id))
       : orderedRooms.value
-    return [{ id: '__all__', label: 'All Rooms', color: '#6366f1', rooms: sortBySearch(rooms) }]
+    return [{ id: '__all__', label: 'All Rooms', color: '#76b51b', rooms: sortBySearch(rooms) }]
   }
 
   const sections = localSections.value.map(s => ({
@@ -891,9 +921,14 @@ const roomById = computed(() => {
 const { expandedSections, toggleSection } = useSections(localSections)
 const { visibleDays, weekHeaders }         = useCalendarDays(toRef(props, 'config'))
 const { dragState, isReverting, pendingMove, confirmMove, cancelMove, onRoomRowMouseenter, onBlockMousedown } = useDragDrop(localReservations, DAY_COL_W, emit, toRef(props, 'config'))
-const { roomBlocks, wrapRef, onScroll, stickyOffset }     = useBlockLayout(
+const { roomBlocks, wrapRef, onScroll: _onScroll, stickyOffset } = useBlockLayout(
   localReservations, dragState, toRef(props, 'config'), DAY_COL_W, ROOM_COL_W,
 )
+const scrollLeft = ref(0)
+function onScroll(e: Event) {
+  scrollLeft.value = (e.target as HTMLElement).scrollLeft
+  _onScroll(e)
+}
 const { tooltipTarget, tooltipStyle, showTooltip, moveTooltip, hideTooltip } = useTooltip()
 
 // ── New reservation drag-to-create ──────────────────────────────────────────
@@ -1084,8 +1119,29 @@ defineExpose({
   width: 100%;
 }
 
-.col-room { width: 170px; min-width: 170px; }
+.col-room { width: var(--rc-room-col-w, 170px); min-width: var(--rc-room-col-w, 170px); }
 .col-day  { width: 80px;  min-width: 80px; }
+
+.cal-table-positioner {
+  position: relative;
+  display: inline-block;
+  min-width: 100%;
+}
+
+.room-col-resize-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 25;
+  border-radius: 3px;
+  transition: background 120ms ease-out;
+}
+@media (hover: hover) and (pointer: fine) {
+  .room-col-resize-bar:hover { background: rgba(99, 102, 241, 0.2); }
+}
+.room-col-resize-bar.is-resizing { background: rgba(99, 102, 241, 0.35); }
 
 /* Sticky first column */
 .cal-table th:first-child,
@@ -1334,7 +1390,7 @@ defineExpose({
   top: 5px; bottom: 5px;
   border-radius: 4px;
   background: rgba(99, 102, 241, 0.12);
-  border: 1.5px dashed #6366f1;
+  border: 1.5px dashed #76b51b;
   z-index: 3;
   pointer-events: none;
   animation: newres-fade-in 0.08s cubic-bezier(0.23, 1, 0.32, 1);
@@ -1347,7 +1403,7 @@ defineExpose({
   position: absolute;
   top: 0; bottom: 0; left: 8px;
   display: flex; align-items: center; gap: 5px;
-  color: #6366f1; font-size: 10px; font-weight: 600;
+  color: #76b51b; font-size: 10px; font-weight: 600;
   white-space: nowrap;
 }
 @keyframes newres-fade-in {
@@ -1574,7 +1630,7 @@ defineExpose({
 
 /* Row drag states */
 .row-is-dragged td { opacity: 0.4; }
-.row-drop-above td { box-shadow: inset 0 2px 0 #6366f1 !important; }
+.row-drop-above td { box-shadow: inset 0 2px 0 #76b51b !important; }
 
 /* Bed name */
 .room-bed-name { font-weight: 400; color: #bbb; }
@@ -1594,7 +1650,7 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   background: #ffffff;
   flex-shrink: 0;
 }
@@ -1602,19 +1658,19 @@ defineExpose({
 .rc-search-field {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   flex: 1;
-  max-width: 320px;
+  max-width: 360px;
   background: #f3f4f6;
   border: 1.5px solid transparent;
-  border-radius: 8px;
-  padding: 5px 10px;
+  border-radius: 9px;
+  padding: 8px 12px;
   transition: border-color 0.15s cubic-bezier(0.23, 1, 0.32, 1),
               background  0.15s cubic-bezier(0.23, 1, 0.32, 1);
 }
 .rc-search-field.is-active,
 .rc-search-field:focus-within {
-  border-color: #6366f1;
+  border-color: #76b51b;
   background: #ffffff;
 }
 .rc-search-icon {
@@ -1623,12 +1679,12 @@ defineExpose({
   transition: color 0.15s;
 }
 .rc-search-field.is-active .rc-search-icon,
-.rc-search-field:focus-within .rc-search-icon { color: #6366f1; }
+.rc-search-field:focus-within .rc-search-icon { color: #76b51b; }
 
 .rc-search-input {
   flex: 1; min-width: 0;
   background: none; border: none; outline: none;
-  font-size: 12px; color: #111827;
+  font-size: 13px; color: #111827;
   font-family: inherit;
 }
 .rc-search-input::placeholder { color: #c4c9d4; }
@@ -1646,7 +1702,7 @@ defineExpose({
 
 .rc-search-badge {
   font-size: 11px;
-  color: #6366f1;
+  color: #76b51b;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -1682,20 +1738,20 @@ defineExpose({
 
 /* Calendar Configuration button */
 .rc-config-btn {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; align-items: center; gap: 7px;
   margin-left: auto;
-  padding: 5px 11px;
-  background: #f9fafb;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 12px; font-weight: 600; color: #374151;
+  padding: 8px 14px;
+  background: #76b51b;
+  border: 1.5px solid #76b51b;
+  border-radius: 9px;
+  font-size: 13px; font-weight: 600; color: #ffffff;
   cursor: pointer; flex-shrink: 0; font-family: inherit;
-  transition: background 0.12s, border-color 0.12s, color 0.12s,
+  transition: background 0.12s, border-color 0.12s,
               transform 0.1s cubic-bezier(0.23, 1, 0.32, 1);
   white-space: nowrap;
 }
 @media (hover: hover) and (pointer: fine) {
-  .rc-config-btn:hover { background: #eef2ff; border-color: #6366f1; color: #6366f1; }
+  .rc-config-btn:hover { background: #5e9016; border-color: #5e9016; }
 }
 .rc-config-btn:active { transform: scale(0.97); }
 
@@ -1728,7 +1784,7 @@ defineExpose({
 .rc-cfg-header-left { display: flex; align-items: center; gap: 12px; }
 .rc-cfg-header-icon {
   width: 40px; height: 40px; border-radius: 10px;
-  background: #6366f1;
+  background: #76b51b;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .rc-cfg-title { font-size: 15px; font-weight: 700; color: #111827; letter-spacing: 0.01em; }
@@ -1762,7 +1818,7 @@ defineExpose({
 }
 .rc-cfg-section-icon {
   width: 24px; height: 24px; border-radius: 6px;
-  background: #eef2ff; color: #6366f1;
+  background: #f3fae8; color: #76b51b;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .rc-cfg-inner-divider {
@@ -1791,8 +1847,8 @@ defineExpose({
 }
 .rc-cfg-radio input[type="radio"] { display: none; }
 .rc-cfg-radio:has(input:checked) {
-  border-color: #6366f1; background: #eef2ff;
-  color: #6366f1; font-weight: 600;
+  border-color: #76b51b; background: #f3fae8;
+  color: #76b51b; font-weight: 600;
 }
 
 /* Checkbox group for block label */
@@ -1810,7 +1866,7 @@ defineExpose({
   transition: background 0.12s, border-color 0.12s;
 }
 .rc-cfg-check:has(input:checked) .rc-cfg-check-box {
-  background: #6366f1; border-color: #6366f1;
+  background: #76b51b; border-color: #76b51b;
 }
 .rc-cfg-check:has(input:checked) { color: #111827; font-weight: 600; }
 
@@ -1823,7 +1879,7 @@ defineExpose({
   outline: none; flex-shrink: 0;
   transition: border-color 0.12s;
 }
-.rc-cfg-number:focus { border-color: #6366f1; }
+.rc-cfg-number:focus { border-color: #76b51b; }
 
 /* Toggle switch */
 .rc-cfg-toggle {
@@ -1832,7 +1888,7 @@ defineExpose({
   position: relative; flex-shrink: 0; padding: 0;
   transition: background 0.18s cubic-bezier(0.23, 1, 0.32, 1);
 }
-.rc-cfg-toggle.is-on { background: #6366f1; }
+.rc-cfg-toggle.is-on { background: #76b51b; }
 .rc-cfg-toggle-thumb {
   position: absolute; top: 3px; left: 3px;
   width: 16px; height: 16px; border-radius: 50%;
@@ -1911,9 +1967,9 @@ defineExpose({
 @media (hover: hover) and (pointer: fine) {
   .rc-cfg-btn--cancel:hover { background: #e5e7eb; }
 }
-.rc-cfg-btn--save { background: #6366f1; color: #ffffff; }
+.rc-cfg-btn--save { background: #76b51b; color: #ffffff; }
 @media (hover: hover) and (pointer: fine) {
-  .rc-cfg-btn--save:hover { background: #4f46e5; }
+  .rc-cfg-btn--save:hover { background: #5e9016; }
 }
 
 /* Modal transition */
