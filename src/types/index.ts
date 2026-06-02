@@ -108,6 +108,10 @@ export interface CalendarFilter {
   showReservationDetail?: boolean
   /** Primary label shown on the booking block */
   calendarLabel?: 'guest-name' | 'folio'
+  /** Allow dragging reservation blocks horizontally (date change). Default true. */
+  allowHorizontalDrag?: boolean
+  /** Allow dragging reservation blocks vertically (room change) and row reorder. Default true. */
+  allowVerticalDrag?: boolean
 }
 
 export interface NewReservationPayload {

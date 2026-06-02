@@ -94,16 +94,17 @@
               'row-drop-above':  rowDragState !== null && rowDragState.toIdx === roomIdx && rowDragState.fromIdx !== roomIdx,
               'row-search-dim':  searchQuery && !matchingRoomIds.has(room.id),
               'row-search-match': searchQuery && matchingRoomIds.has(room.id),
+              'row--with-balance': filterShowTotalBalance,
             }"
             @mouseenter="onRoomRowMouseenter(room.id)"
           >
             <td
               class="room-cell col-room"
-              :class="{ 'room-cell--draggable': filterCalendarType === 'normal' }"
+              :class="{ 'room-cell--draggable': filterCalendarType === 'normal' && filterAllowVerticalDrag }"
               @mousedown.left.stop="onRoomCellMousedown($event, room.id, roomIdx)"
             >
               <div class="room-row-info">
-                <span v-if="filterCalendarType === 'normal'" class="room-drag-handle" aria-hidden="true">
+                <span v-if="filterCalendarType === 'normal' && filterAllowVerticalDrag" class="room-drag-handle" aria-hidden="true">
                   <svg width="10" height="14" viewBox="0 0 10 14" fill="none">
                     <circle cx="3" cy="3" r="1.2" fill="currentColor"/><circle cx="7" cy="3" r="1.2" fill="currentColor"/>
                     <circle cx="3" cy="7" r="1.2" fill="currentColor"/><circle cx="7" cy="7" r="1.2" fill="currentColor"/>
@@ -428,7 +429,7 @@
           <div class="rc-cfg-section">
             <div class="rc-cfg-section-title">
               <span class="rc-cfg-section-icon">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
                 </svg>
               </span>
@@ -437,27 +438,17 @@
 
             <div class="rc-cfg-row">
               <label class="rc-cfg-label">Block Label</label>
-              <div class="rc-cfg-check-group">
-                <label class="rc-cfg-check">
+              <div class="rc-cfg-radio-group">
+                <label class="rc-cfg-radio">
                   <input type="checkbox"
                     :checked="calConfig.calender_label !== 'folio'"
                     @change="toggleLabel('guest_name', $event)">
-                  <span class="rc-cfg-check-box">
-                    <svg v-if="calConfig.calender_label !== 'folio'" width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="2 6 5 9 10 3"/>
-                    </svg>
-                  </span>
                   <span>Guest Name</span>
                 </label>
-                <label class="rc-cfg-check">
+                <label class="rc-cfg-radio">
                   <input type="checkbox"
                     :checked="calConfig.calender_label !== 'guest_name'"
                     @change="toggleLabel('folio', $event)">
-                  <span class="rc-cfg-check-box">
-                    <svg v-if="calConfig.calender_label !== 'guest_name'" width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="2 6 5 9 10 3"/>
-                    </svg>
-                  </span>
                   <span>Folio</span>
                 </label>
               </div>
@@ -517,7 +508,7 @@
           <div class="rc-cfg-section">
             <div class="rc-cfg-section-title">
               <span class="rc-cfg-section-icon">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 10H3V8h2v4h2V8h2v4h2V8h2v4h2V8h2v4h2V8h2v8z"/>
                 </svg>
               </span>
@@ -539,7 +530,7 @@
           <div class="rc-cfg-section">
             <div class="rc-cfg-section-title">
               <span class="rc-cfg-section-icon">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
                 </svg>
               </span>
@@ -686,6 +677,8 @@ const filterShowTotalBalance    = ref(false)
 const filterShowBedName         = ref(false)
 const filterShowReservationDetail = ref(true)
 const filterCalendarLabel       = ref<'guest-name' | 'folio'>('guest-name')
+const filterAllowHorizontalDrag = ref(true)
+const filterAllowVerticalDrag   = ref(true)
 
 // ── Calendar Configuration ───────────────────────────────────────────────────
 const calConfigOpen = ref(false)
@@ -871,6 +864,7 @@ const rowDragState = ref<{ roomId: string; fromIdx: number; toIdx: number } | nu
 
 function onRoomCellMousedown(event: MouseEvent, roomId: string, roomIdx: number) {
   if (filterCalendarType.value !== 'normal') return
+  if (!filterAllowVerticalDrag.value) return
   if (dragState.value) return
   event.stopPropagation()
   event.preventDefault()
@@ -920,7 +914,7 @@ const roomById = computed(() => {
 
 const { expandedSections, toggleSection } = useSections(localSections)
 const { visibleDays, weekHeaders }         = useCalendarDays(toRef(props, 'config'))
-const { dragState, isReverting, pendingMove, confirmMove, cancelMove, onRoomRowMouseenter, onBlockMousedown } = useDragDrop(localReservations, DAY_COL_W, emit, toRef(props, 'config'))
+const { dragState, isReverting, pendingMove, confirmMove, cancelMove, onRoomRowMouseenter, onBlockMousedown } = useDragDrop(localReservations, DAY_COL_W, emit, toRef(props, 'config'), filterAllowHorizontalDrag, filterAllowVerticalDrag)
 const { roomBlocks, wrapRef, onScroll: _onScroll, stickyOffset } = useBlockLayout(
   localReservations, dragState, toRef(props, 'config'), DAY_COL_W, ROOM_COL_W,
 )
@@ -944,7 +938,7 @@ const newResPreview = computed(() => {
   return {
     roomId:   d.roomId,
     roomName: d.roomName,
-    left:     minIdx * DAY_COL_W.value,
+    left:     minIdx * DAY_COL_W.value + DAY_COL_W.value / 2,
     width:    (maxIdx - minIdx + 1) * DAY_COL_W.value,
     checkIn:  days[minIdx].iso,
     checkOut: addDays(days[maxIdx].iso, 1),
@@ -1085,6 +1079,8 @@ defineExpose({
     if (filter.showBedName           !== undefined) filterShowBedName.value          = filter.showBedName
     if (filter.showReservationDetail !== undefined) filterShowReservationDetail.value = filter.showReservationDetail
     if (filter.calendarLabel         !== undefined) filterCalendarLabel.value        = filter.calendarLabel
+    if (filter.allowHorizontalDrag   !== undefined) filterAllowHorizontalDrag.value  = filter.allowHorizontalDrag
+    if (filter.allowVerticalDrag     !== undefined) filterAllowVerticalDrag.value    = filter.allowVerticalDrag
     if (filter.startDate !== undefined) {
       const end = filter.endDate ?? addDays(filter.startDate, props.config.visibleDays - 1)
       emit('date-range-changed', { startDate: filter.startDate, endDate: end })
@@ -1192,6 +1188,7 @@ defineExpose({
   background: #ffffff;
   overflow: hidden;
 }
+.row--with-balance td { height: 72px; }
 .cal-table td:first-child {
   background: #ffffff;
   border-right: 1px solid #e5e7eb !important;
@@ -1336,9 +1333,9 @@ defineExpose({
 }
 .booking-inner > svg { opacity: 0.75; }
 .b-texts { display: flex; flex-direction: column; justify-content: center; gap: 1px; }
-.b-name  { font-size: 10px; font-weight: 600; color: var(--block-fg, #fff); }
-.b-folio { font-size: 9px;  color: var(--block-fg, #fff); opacity: 0.7; }
-.b-paid  { font-size: 9px;  color: var(--block-fg, #fff); opacity: 0.65; }
+.b-name  { font-size: 12px; font-weight: 600; color: var(--block-fg, #fff); }
+.b-folio { font-size: 11px;  color: #ffffff; opacity: 1; }
+.b-paid  { font-size: 11px;  color: #ffffff; opacity: 1; }
 
 /* Tooltip */
 .rc-tooltip {
@@ -1636,7 +1633,7 @@ defineExpose({
 .room-bed-name { font-weight: 400; color: #bbb; }
 
 /* Balance line on booking block */
-.b-balance { font-size: 9px; color: var(--block-fg, #fff); opacity: 0.65; }
+.b-balance { font-size: 9px; color: #ffffff; opacity: 0.8; }
 
 /* Root wrapper */
 .rc-root {
@@ -1817,9 +1814,8 @@ defineExpose({
   letter-spacing: -0.01em; margin-bottom: 14px;
 }
 .rc-cfg-section-icon {
-  width: 24px; height: 24px; border-radius: 6px;
-  background: #f3fae8; color: #76b51b;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  color: #111827;
 }
 .rc-cfg-inner-divider {
   height: 1px; background: #d1d5db;
@@ -1845,7 +1841,8 @@ defineExpose({
   transition: border-color 0.12s, background 0.12s, color 0.12s;
   user-select: none;
 }
-.rc-cfg-radio input[type="radio"] { display: none; }
+.rc-cfg-radio input[type="radio"],
+.rc-cfg-radio input[type="checkbox"] { display: none; }
 .rc-cfg-radio:has(input:checked) {
   border-color: #76b51b; background: #f3fae8;
   color: #76b51b; font-weight: 600;

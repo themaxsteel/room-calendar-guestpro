@@ -26,13 +26,15 @@ export function useDragDrop(
   DAY_COL_W: Ref<number>,
   emit: DragDropEmit,
   config: Ref<CalendarConfig>,
+  allowHorizontalDrag: Ref<boolean>,
+  allowVerticalDrag: Ref<boolean>,
 ) {
   const dragState    = ref<DragState | null>(null)
   const isReverting  = ref(false)
   const pendingMove  = ref<PendingMove | null>(null)
 
   function onRoomRowMouseenter(roomId: string) {
-    if (dragState.value) {
+    if (dragState.value && allowVerticalDrag.value) {
       dragState.value.targetRoomId = roomId
     }
   }
@@ -62,6 +64,11 @@ export function useDragDrop(
   function onBlockMousedown(event: MouseEvent, block: BlockLayout, room: Room) {
     event.preventDefault()
 
+    if (!allowHorizontalDrag.value && !allowVerticalDrag.value) {
+      emit('reservation-clicked', { reservation: block, room })
+      return
+    }
+
     const ds: DragState = {
       blockId:      block.id,
       roomId:       block.roomId,
@@ -75,6 +82,7 @@ export function useDragDrop(
     const origCheckOut = block.checkOut
 
     function onMousemove(e: MouseEvent) {
+      if (!allowHorizontalDrag.value) return
       const snapped = Math.round((e.clientX - ds.startX) / DAY_COL_W.value)
       if (dragState.value) dragState.value.deltaDays = snapped
     }

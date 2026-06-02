@@ -36,7 +36,7 @@ export function useBlockLayout(
         ...r,
         checkIn,
         checkOut,
-        left:  offsetDays * DAY_COL_W.value,
+        left:  offsetDays * DAY_COL_W.value + DAY_COL_W.value / 2,
         width: spanDays   * DAY_COL_W.value - 2,
       }
       const renderRoomId = (ds?.blockId === r.id && ds.targetRoomId) ? ds.targetRoomId : r.roomId
