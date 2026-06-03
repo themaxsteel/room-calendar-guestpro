@@ -29,18 +29,26 @@ export interface GuestProChartingRoom {
 
 export interface GuestProReservationItem {
   id: string
-  reservation_id: string
-  arrival_date: string
-  departure_date: string
-  status: string
-  resv_status: string
-  room_id: string
-  folio_no: number | string
-  guest_profile_name: string
+  // calendar_reservation_data_list fields
+  name?: string
+  resourceId?: string
+  startDate?: string   // "YYYY-MM-DD HH:mm:ss"
+  endDate?: string     // "YYYY-MM-DD HH:mm:ss"
+  calender_status?: string
+  // search_reservation fields (legacy)
+  reservation_id?: string
+  arrival_date?: string
+  departure_date?: string
+  room_id?: string
+  folio_no?: number | string | null
+  guest_profile_name?: string
   guest_profile?: string
-  total: number | string
-  total_paid: number | string
-  is_cancelled: number
+  // shared
+  status: string
+  resv_status?: string
+  total?: number | string
+  total_paid?: number | string
+  is_cancelled?: number
   [key: string]: unknown
 }
 
@@ -83,21 +91,33 @@ export function transformReservations(
 
   const result: Reservation[] = []
   for (const item of items) {
-    if (item.is_cancelled || item.status === 'CANCELLED') continue
+    // Skip virtual room shadows and cancelled entries
+    const s = (item.calender_status || item.status || '').toUpperCase()
+    if (s === 'VIRTUALROOM' || s === 'CANCELLED') continue
+    if (item.is_cancelled) continue
 
-    const total = Number(item.total) || 0
+    // Support both calendar_reservation_data_list (new) and search_reservation (legacy)
+    const roomId    = (item.resourceId || item.room_id || '').trim()
+    const guestName = (item.name || item.guest_profile_name || item.guest_profile || '').trim()
+    // startDate may include time "2026-05-06 00:00:00" — strip to date only
+    const checkIn   = (item.startDate  || item.arrival_date   || '').slice(0, 10)
+    const checkOut  = (item.endDate    || item.departure_date  || '').slice(0, 10)
+
+    if (!roomId || !checkIn || !checkOut) continue
+
+    const total     = Number(item.total)      || 0
     const totalPaid = Number(item.total_paid) || 0
     const paidPercent = total > 0 ? Math.min(100, Math.round((totalPaid / total) * 100)) : 0
 
     result.push({
       id: item.id,
-      roomId: item.room_id,
-      guestName: (item.guest_profile_name || item.guest_profile || '').trim(),
-      folioNumber: String(item.folio_no),
-      checkIn: item.arrival_date,
-      checkOut: item.departure_date,
+      roomId,
+      guestName,
+      folioNumber: item.folio_no != null ? String(item.folio_no) : '',
+      checkIn,
+      checkOut,
       paidPercent,
-      status: normalizeReservationStatus(item.status),
+      status: normalizeReservationStatus(s),
     })
   }
   return result
@@ -117,9 +137,10 @@ function normalizeRoomStatus(status: string): RoomStatus {
 
 function normalizeReservationStatus(status: string): ReservationStatus {
   switch (status) {
-    case 'CHECK_IN':  return 'CHECK-IN'
-    case 'CHECK_OUT': return 'CHECK-OUT'
-    case 'BOOKED':    return 'BOOKED'
-    default:          return 'DEFINITE'
+    case 'CHECK_IN':     return 'CHECK-IN'
+    case 'CHECK_OUT':    return 'CHECK-OUT'
+    case 'BOOKED':       return 'BOOKED'
+    case 'MAINTENANCE':  return 'ROOM_MAINTENANCE'
+    default:             return 'DEFINITE'
   }
 }

@@ -23,6 +23,7 @@ export function useTooltip() {
   })
 
   function showTooltip(e: MouseEvent, block: BlockLayout, room: Room) {
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
     target.value = { block, room }
     x.value = e.clientX
     y.value = e.clientY

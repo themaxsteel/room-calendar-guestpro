@@ -7,6 +7,15 @@ export default defineConfig({
   server: {
     port: 5175,
     strictPort: false,
+    // Proxy for demo-guestpro.html — forwards /gp-api/* to the GuestPro API
+    // server-side so the browser never makes a cross-origin request.
+    proxy: {
+      '/gp-api': {
+        target: 'https://core-api.guestpro.id',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/gp-api/, ''),
+      },
+    },
   },
   plugins: [
     vue({

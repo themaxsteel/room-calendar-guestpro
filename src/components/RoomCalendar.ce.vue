@@ -58,7 +58,7 @@
       <thead>
         <!-- Week header row -->
         <tr>
-          <th class="col-room col-room--header" rowspan="2">ROOM</th>
+          <th class="col-room col-room--header" rowspan="2">ROOMS</th>
           <th
             v-for="week in weekHeaders"
             :key="week.label"
@@ -96,6 +96,7 @@
             v-for="(room, roomIdx) in section.rooms"
             v-show="filterCalendarType === 'normal' || expandedSections[section.id]"
             :key="room.id"
+            :data-room-id="room.id"
             :class="{
               'drop-target':     dragState !== null && dragState.targetRoomId === room.id && dragState.roomId !== room.id,
               'row-is-dragged':  rowDragState?.roomId === room.id,
@@ -104,7 +105,6 @@
               'row-search-match': searchQuery && matchingRoomIds.has(room.id),
               'row--with-balance': filterShowTotalBalance,
             }"
-            @pointerenter="onRoomRowPointerenter(room.id)"
           >
             <td
               class="room-cell col-room"
@@ -144,7 +144,7 @@
                   v-for="block in roomBlocks(room.id)"
                   :key="block.id"
                   class="booking-block"
-                  :class="[`status-${block.status.toLowerCase().replace('_', '-')}`, { 'is-dragged': dragState?.blockId === block.id, 'is-reverting': isReverting && dragState?.blockId === block.id, 'is-search-match': searchQuery && isSearchMatch(block), 'is-search-dim': searchQuery && !isSearchMatch(block) }]"
+                  :class="[`status-${block.status.toLowerCase().replace('_', '-')}`, { 'is-dragged': dragState?.blockId === block.id, 'is-search-match': searchQuery && isSearchMatch(block), 'is-search-dim': searchQuery && !isSearchMatch(block) }]"
                   :style="{
                     left: block.left + 'px',
                     width: block.width + 'px',
@@ -833,8 +833,7 @@ const filterShowTotalBalance    = ref(false)
 const filterShowBedName         = ref(false)
 const filterShowReservationDetail = ref(true)
 const filterCalendarLabel       = ref<'guest-name' | 'folio'>('guest-name')
-const filterAllowHorizontalDrag = ref(true)
-const filterAllowVerticalDrag   = ref(true)
+const filterAllowVerticalDrag = ref(true)
 
 // ── Calendar Configuration ───────────────────────────────────────────────────
 const calConfigOpen = ref(false)
@@ -1090,10 +1089,8 @@ const effectiveConfig = computed(() => ({
 
 const { expandedSections, toggleSection } = useSections(localSections)
 const { visibleDays, weekHeaders }         = useCalendarDays(effectiveConfig)
-const { dragState, isReverting, pendingMove, confirmMove, cancelMove, onRoomRowPointerenter, onBlockPointerdown } = useDragDrop(localReservations, DAY_COL_W, emit, effectiveConfig, filterAllowHorizontalDrag, filterAllowVerticalDrag)
-const { roomBlocks, wrapRef } = useBlockLayout(
-  localReservations, dragState, effectiveConfig, DAY_COL_W,
-)
+const { dragState, pendingMove, confirmMove, cancelMove, onBlockPointerdown } = useDragDrop(localReservations, emit, effectiveConfig, filterAllowVerticalDrag)
+const { roomBlocks, wrapRef } = useBlockLayout(localReservations, effectiveConfig, DAY_COL_W)
 const scrollLeft = ref(0)
 let infiniteScrollTimer: ReturnType<typeof setTimeout> | null = null
 function onScroll(e: Event) {
@@ -1381,8 +1378,7 @@ defineExpose({
     if (filter.showBedName           !== undefined) filterShowBedName.value          = filter.showBedName
     if (filter.showReservationDetail !== undefined) filterShowReservationDetail.value = filter.showReservationDetail
     if (filter.calendarLabel         !== undefined) filterCalendarLabel.value        = filter.calendarLabel
-    if (filter.allowHorizontalDrag   !== undefined) filterAllowHorizontalDrag.value  = filter.allowHorizontalDrag
-    if (filter.allowVerticalDrag     !== undefined) filterAllowVerticalDrag.value    = filter.allowVerticalDrag
+    if (filter.allowVerticalDrag !== undefined) filterAllowVerticalDrag.value = filter.allowVerticalDrag
     if (filter.startDate !== undefined) {
       const end = filter.endDate ?? addDays(filter.startDate, props.config.visibleDays - 1)
       const payload = { startDate: filter.startDate, endDate: end }
@@ -1420,7 +1416,7 @@ defineExpose({
 }
 
 .col-room { width: var(--rc-room-col-w, 170px); min-width: var(--rc-room-col-w, 170px); }
-.col-room--header { font-size: 14px; font-weight: 700; letter-spacing: 0.05em; }
+.col-room--header { font-size: 14px; font-weight: 700; letter-spacing: 0.05em; z-index:20!important; }
 .col-day  { width: 100px; min-width: 100px; }
 
 .cal-table-positioner {
@@ -1449,12 +1445,14 @@ defineExpose({
 .cal-table td:first-child {
   position: sticky;
   left: 0;
-  z-index: 10;
+  z-index: 12;
   box-shadow: 1px 0 0 #e5e7eb, 4px 0 8px -2px rgba(0,0,0,0.06);
 }
-.col-room .col-room--header { z-index: 21; }
-.cal-table thead tr:first-child th { position: sticky; top: 0; }
-.cal-table thead tr:last-child th { position: sticky; top: 28px; z-index: 6; }
+/* All thead cells stick to the top when scrolling down */
+.cal-table thead tr:first-child th { position: sticky; top: 0;     z-index: 11; }
+.cal-table thead tr:last-child  th { position: sticky; top: 26px;  z-index: 11; }
+/* ROOM corner cell — sticky both horizontally and vertically, highest z-index */
+.cal-table thead th:first-child    { z-index: 21; }
 
 .cal-table th {
   background: #f9fafb;
@@ -1605,11 +1603,6 @@ defineExpose({
   box-shadow: 0 4px 16px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.08);
   z-index: 20;
 }
-.booking-block.is-reverting {
-  transition: left 220ms cubic-bezier(0.23, 1, 0.32, 1), opacity 0.15s;
-  cursor: default;
-}
-
 /* Suppress hover on non-dragged blocks while a drag is active */
 .cal-table.is-dragging .booking-block:not(.is-dragged) {
   pointer-events: none;

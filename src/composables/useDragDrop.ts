@@ -1,9 +1,6 @@
 import { ref } from 'vue'
 import type { Ref } from 'vue'
 import type { Room, Reservation, BlockLayout, DragState, CalendarConfig } from '../types'
-import { addDays } from './useDateHelpers'
-
-const REVERT_MS = 220
 
 interface DragDropEmit {
   (event: 'reservation-clicked', payload: { reservation: Reservation; room: Room }): void
@@ -11,14 +8,13 @@ interface DragDropEmit {
 }
 
 interface PendingMove {
-  id:          string
-  room_id:     string
+  id:           string
+  room_id:      string
   arrival_date: string
   departure_date: string
-  company_id:  string
+  company_id:   string
   from_room_id: string
-  /** snapshot to restore if user cancels */
-  snapshot: Reservation
+  snapshot:     Reservation
 }
 
 function postFlutterMessage(type: string, payload: unknown) {
@@ -29,21 +25,12 @@ function postFlutterMessage(type: string, payload: unknown) {
 
 export function useDragDrop(
   localReservations: Ref<Reservation[]>,
-  DAY_COL_W: Ref<number>,
   emit: DragDropEmit,
   config: Ref<CalendarConfig>,
-  allowHorizontalDrag: Ref<boolean>,
   allowVerticalDrag: Ref<boolean>,
 ) {
-  const dragState    = ref<DragState | null>(null)
-  const isReverting  = ref(false)
-  const pendingMove  = ref<PendingMove | null>(null)
-
-  function onRoomRowPointerenter(roomId: string) {
-    if (dragState.value && allowVerticalDrag.value) {
-      dragState.value.targetRoomId = roomId
-    }
-  }
+  const dragState   = ref<DragState | null>(null)
+  const pendingMove = ref<PendingMove | null>(null)
 
   function confirmMove() {
     if (!pendingMove.value) return
@@ -73,7 +60,7 @@ export function useDragDrop(
     if (event.button !== 0 && event.pointerType !== 'touch') return
     event.preventDefault()
 
-    if (!allowHorizontalDrag.value && !allowVerticalDrag.value) {
+    if (!allowVerticalDrag.value) {
       const payload = { reservation: block, room }
       emit('reservation-clicked', payload)
       postFlutterMessage('reservation-clicked', payload)
@@ -83,84 +70,87 @@ export function useDragDrop(
     const el = event.currentTarget as HTMLElement
     el.setPointerCapture(event.pointerId)
 
-    const ds: DragState = {
+    dragState.value = {
       blockId:      block.id,
       roomId:       block.roomId,
       targetRoomId: block.roomId,
-      startX:       event.clientX,
-      deltaDays:    0,
     }
-    dragState.value = ds
 
-    const origCheckIn  = block.checkIn
-    const origCheckOut = block.checkOut
+    // Track whether the pointer moved far enough to count as a drag
+    let hasMoved = false
+    const startY = event.clientY
 
     function onPointermove(e: PointerEvent) {
-      if (!allowHorizontalDrag.value) return
-      const snapped = Math.round((e.clientX - ds.startX) / DAY_COL_W.value)
-      if (dragState.value) dragState.value.deltaDays = snapped
+      if (!dragState.value) return
+      if (!hasMoved && Math.abs(e.clientY - startY) < 6) return
+      hasMoved = true
+
+      // Temporarily remove the dragged block from hit-testing so elementFromPoint
+      // returns the underlying row and not the block itself (which sits at z-index: 20).
+      // Pointer capture continues to deliver events to el regardless of this CSS flag.
+      el.style.pointerEvents = 'none'
+      const root = el.getRootNode() as ShadowRoot | Document
+      const hit  = root.elementFromPoint(e.clientX, e.clientY)
+      el.style.pointerEvents = ''
+
+      const row = hit?.closest?.('[data-room-id]') as HTMLElement | null
+      if (row?.dataset.roomId) dragState.value.targetRoomId = row.dataset.roomId
+    }
+
+    function cleanup() {
+      el.removeEventListener('pointermove',   onPointermove)
+      el.removeEventListener('pointerup',     onPointerup)
+      el.removeEventListener('pointercancel', onPointercancel)
+    }
+
+    function onPointercancel() {
+      cleanup()
+      dragState.value = null
     }
 
     function onPointerup() {
-      el.removeEventListener('pointermove', onPointermove)
-      el.removeEventListener('pointerup',   onPointerup)
+      cleanup()
 
-      const finalDelta = dragState.value?.deltaDays    ?? 0
-      const newRoomId  = dragState.value?.targetRoomId ?? block.roomId
-      dragState.value  = null
+      const newRoomId = dragState.value?.targetRoomId ?? block.roomId
+      dragState.value = null
 
-      if (newRoomId !== block.roomId || finalDelta !== 0) {
-        const newCheckIn  = addDays(origCheckIn,  finalDelta)
-        const newCheckOut = addDays(origCheckOut, finalDelta)
-
-        const hasConflict = localReservations.value.some(r => {
-          if (r.id === block.id) return false
-          if (r.roomId !== newRoomId) return false
-          return newCheckIn < r.checkOut && newCheckOut > r.checkIn
-        })
-
-        if (hasConflict) {
-          isReverting.value = true
-          requestAnimationFrame(() => {
-            setTimeout(() => {
-              dragState.value   = null
-              isReverting.value = false
-            }, REVERT_MS)
-          })
-          return
-        }
-
-        const snapshot = { ...localReservations.value.find(r => r.id === block.id)! }
-
-        const idx = localReservations.value.findIndex(r => r.id === block.id)
-        if (idx !== -1) {
-          localReservations.value[idx] = {
-            ...localReservations.value[idx],
-            roomId:   newRoomId,
-            checkIn:  newCheckIn,
-            checkOut: newCheckOut,
-          }
-        }
-
-        pendingMove.value = {
-          id:             block.id,
-          room_id:        newRoomId,
-          arrival_date:   newCheckIn,
-          departure_date: newCheckOut,
-          company_id:     config.value.companyId ?? '',
-          from_room_id:   block.roomId,
-          snapshot,
-        }
-      } else {
-        const payload = { reservation: { ...block, checkIn: origCheckIn, checkOut: origCheckOut }, room }
+      if (!hasMoved || newRoomId === block.roomId) {
+        // Short press with no movement → treat as a click
+        const payload = { reservation: { ...block }, room }
         emit('reservation-clicked', payload)
         postFlutterMessage('reservation-clicked', payload)
+        return
+      }
+
+      const hasConflict = localReservations.value.some(r => {
+        if (r.id === block.id)      return false
+        if (r.roomId !== newRoomId) return false
+        return block.checkIn < r.checkOut && block.checkOut > r.checkIn
+      })
+
+      if (hasConflict) return
+
+      const snapshot = { ...localReservations.value.find(r => r.id === block.id)! }
+      const idx = localReservations.value.findIndex(r => r.id === block.id)
+      if (idx !== -1) {
+        localReservations.value[idx] = { ...localReservations.value[idx], roomId: newRoomId }
+      }
+
+      pendingMove.value = {
+        id:             block.id,
+        room_id:        newRoomId,
+        arrival_date:   block.checkIn,
+        departure_date: block.checkOut,
+        company_id:     config.value.companyId ?? '',
+        from_room_id:   block.roomId,
+        snapshot,
       }
     }
 
-    el.addEventListener('pointermove', onPointermove)
-    el.addEventListener('pointerup',   onPointerup)
+    el.addEventListener('pointermove',   onPointermove)
+    el.addEventListener('pointerup',     onPointerup)
+    el.addEventListener('pointercancel', onPointercancel)
   }
 
-  return { dragState, isReverting, pendingMove, confirmMove, cancelMove, onRoomRowPointerenter, onBlockPointerdown }
+  return { dragState, pendingMove, confirmMove, cancelMove, onBlockPointerdown }
 }
