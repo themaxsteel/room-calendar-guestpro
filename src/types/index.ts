@@ -48,6 +48,10 @@ export interface CalendarConfig {
 export interface BlockLayout extends Reservation {
   left: number
   width: number
+  /** 0-based row index within the room row (0 when no overlap) */
+  row: number
+  /** total stacked rows needed for this room at this time period (1 = no overlap) */
+  totalRows: number
 }
 
 export interface DragState {

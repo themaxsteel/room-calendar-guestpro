@@ -105,6 +105,9 @@
               'row-search-match': searchQuery && matchingRoomIds.has(room.id),
               'row--with-balance': filterShowTotalBalance,
             }"
+            :style="roomTotalRows(room.id) > 1
+              ? { '--row-h': (filterShowTotalBalance ? 72 : 48) * roomTotalRows(room.id) + 'px' }
+              : undefined"
           >
             <td
               class="room-cell col-room"
@@ -146,8 +149,10 @@
                   class="booking-block"
                   :class="[`status-${block.status.toLowerCase().replace('_', '-')}`, { 'is-dragged': dragState?.blockId === block.id, 'is-search-match': searchQuery && isSearchMatch(block), 'is-search-dim': searchQuery && !isSearchMatch(block) }]"
                   :style="{
-                    left: block.left + 'px',
-                    width: block.width + 'px',
+                    left:   block.left + 'px',
+                    width:  block.width + 'px',
+                    top:    block.totalRows > 1 ? `calc(${block.row / block.totalRows * 100}% + 3px)`         : '5px',
+                    bottom: block.totalRows > 1 ? `calc(${(block.totalRows - block.row - 1) / block.totalRows * 100}% + 3px)` : '5px',
                   }"
                   @pointerdown.stop.prevent="onBlockPointerdown($event, block, room)"
                   @mouseenter="showTooltip($event, block, room)"
@@ -183,7 +188,7 @@
                       </svg>
                       <div class="b-texts">
                         <span class="b-name">{{ filterCalendarLabel === 'folio' ? 'Folio #' + block.folioNumber : block.guestName }}</span>
-                        <span v-if="filterCalendarLabel === 'guest-name'" class="b-folio">Folio #{{ block.folioNumber }}</span>
+                        <span v-if="filterShowFolioSecondary" class="b-folio">Folio #{{ block.folioNumber }}</span>
                         <span v-if="filterShowTotalBalance && block.totalBalance != null" class="b-balance">{{ formatBalance(block.totalBalance) }}</span>
                         <span v-else-if="filterShowTotalBalance" class="b-paid">Paid {{ block.paidPercent }}%</span>
                       </div>
@@ -219,10 +224,10 @@
   <!-- Infinite scroll loading indicator -->
   <Transition name="inf-loader">
     <div v-if="isInfiniteLoading" class="rc-inf-loader">
-      <svg class="rc-inf-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+      <svg class="rc-inf-spinner" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
         <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
       </svg>
-      <span>Loading…</span>
+      <span>Loading more days…</span>
     </div>
   </Transition>
 
@@ -651,6 +656,13 @@
                 <span class="rc-cfg-toggle-thumb"></span>
               </button>
             </div>
+
+            <div class="rc-cfg-row rc-cfg-row--toggle">
+              <label class="rc-cfg-label">Block Starts at 00:00</label>
+              <button class="rc-cfg-toggle" :class="{ 'is-on': calConfig.calender_block_start_midnight === 1 }" @click="calConfig.calender_block_start_midnight = calConfig.calender_block_start_midnight === 1 ? 0 : 1">
+                <span class="rc-cfg-toggle-thumb"></span>
+              </button>
+            </div>
           </div>
 
           <!-- Dimensions -->
@@ -819,6 +831,7 @@ const emit = defineEmits<{
   'new-reservation':    [payload: { roomId: string; checkIn: string; checkOut: string; type: 'room-plan' | 'single' | 'group' }]
   'calendar-config-saved': [payload: Record<string, unknown>]
   'filter-search': [payload: { startDate: string; openAvailability: boolean }]
+  'infinite-scroll-load': [payload: { startDate: string; endDate: string }]
 }>()
 
 const DAY_COL_W = computed(() => props.config.dayColWidth ?? 100)
@@ -832,7 +845,9 @@ const filterShowUnallocated     = ref(true)
 const filterShowTotalBalance    = ref(false)
 const filterShowBedName         = ref(false)
 const filterShowReservationDetail = ref(true)
-const filterCalendarLabel       = ref<'guest-name' | 'folio'>('guest-name')
+const filterCalendarLabel         = ref<'guest-name' | 'folio'>('guest-name')
+const filterBlockStartMidnight    = ref(false)
+const filterShowFolioSecondary  = ref(false)
 const filterAllowVerticalDrag = ref(true)
 
 // ── Calendar Configuration ───────────────────────────────────────────────────
@@ -857,6 +872,7 @@ const calConfig = reactive({
   calender_total_balance:          0 as 0 | 1,
   show_bed_type_after_room_name:   0 as 0 | 1,
   calender_show_hover_tooltips:    1 as 0 | 1,
+  calender_block_start_midnight:   0 as 0 | 1,
 })
 
 const calConfigStyle = computed(() => ({
@@ -887,24 +903,31 @@ function toggleLabel(part: 'guest_name' | 'folio', event: Event) {
 }
 
 function openCalConfig() {
-  calConfig.calender_label               = filterCalendarLabel.value === 'folio' ? 'folio' : 'guest_name'
+  calConfig.calender_label               = filterCalendarLabel.value === 'folio' ? 'folio' : filterShowFolioSecondary.value ? 'guest_name,folio' : 'guest_name'
   calConfig.calender_type                = filterCalendarType.value === 'normal' ? 'NORMAL' : 'GROUP'
   calConfig.calender_use_unallocated     = filterShowUnallocated.value ? 1 : 0
   calConfig.calender_total_balance       = filterShowTotalBalance.value ? 1 : 0
   calConfig.show_bed_type_after_room_name = filterShowBedName.value ? 1 : 0
   calConfig.calender_show_hover_tooltips = filterShowReservationDetail.value ? 1 : 0
+  calConfig.calender_block_start_midnight = filterBlockStartMidnight.value ? 1 : 0
   calConfig.calender_room_column         = ROOM_COL_W.value
   calConfigOpen.value = true
 }
 
-function saveCalConfig() {
-  filterCalendarLabel.value        = calConfig.calender_label === 'folio' ? 'folio' : 'guest-name'
-  filterCalendarType.value         = calConfig.calender_type === 'NORMAL' ? 'normal' : 'by-room-type'
-  filterShowUnallocated.value      = calConfig.calender_use_unallocated === 1
-  filterShowTotalBalance.value     = calConfig.calender_total_balance === 1
-  filterShowBedName.value          = calConfig.show_bed_type_after_room_name === 1
+function applyCalConfig() {
+  filterCalendarLabel.value         = calConfig.calender_label === 'folio' ? 'folio' : 'guest-name'
+  filterShowFolioSecondary.value    = calConfig.calender_label === 'guest_name,folio'
+  filterCalendarType.value          = calConfig.calender_type === 'NORMAL' ? 'normal' : 'by-room-type'
+  filterShowUnallocated.value       = calConfig.calender_use_unallocated === 1
+  filterShowTotalBalance.value      = calConfig.calender_total_balance === 1
+  filterShowBedName.value           = calConfig.show_bed_type_after_room_name === 1
   filterShowReservationDetail.value = calConfig.calender_show_hover_tooltips === 1
-  filterRoomColW.value             = calConfig.calender_room_column
+  filterBlockStartMidnight.value    = calConfig.calender_block_start_midnight === 1
+  filterRoomColW.value              = calConfig.calender_room_column
+}
+
+function saveCalConfig() {
+  applyCalConfig()
   const cfg = { ...calConfig }
   emit('calendar-config-saved', cfg)
   postFlutterMessage('calendar-config-saved', cfg)
@@ -1092,7 +1115,7 @@ const { tooltipTarget, tooltipStyle, showTooltip, moveTooltip, hideTooltip } = u
 const { expandedSections, toggleSection } = useSections(localSections)
 const { visibleDays, weekHeaders }         = useCalendarDays(effectiveConfig)
 const { dragState, pendingMove, confirmMove, cancelMove, onBlockPointerdown } = useDragDrop(localReservations, emit, effectiveConfig, filterAllowVerticalDrag, hideTooltip)
-const { roomBlocks, wrapRef } = useBlockLayout(localReservations, effectiveConfig, DAY_COL_W)
+const { roomBlocks, roomTotalRows, wrapRef } = useBlockLayout(localReservations, effectiveConfig, DAY_COL_W, filterBlockStartMidnight)
 const scrollLeft = ref(0)
 let infiniteScrollTimer: ReturnType<typeof setTimeout> | null = null
 function onScroll(e: Event) {
@@ -1115,8 +1138,13 @@ function onScroll(e: Event) {
   if (!isInfiniteLoading.value && el.scrollLeft + el.clientWidth >= el.scrollWidth - DAY_COL_W.value * 5) {
     isInfiniteLoading.value = true
     if (infiniteScrollTimer) clearTimeout(infiniteScrollTimer)
+    const snapStartDate = effectiveConfig.value.startDate
+    const snapPrevTotal = (filterVisibleDaysOverride.value ?? props.config.visibleDays) + infiniteExtraDays.value
     infiniteScrollTimer = setTimeout(() => {
       infiniteExtraDays.value += 30
+      const chunkStart = addDays(snapStartDate, snapPrevTotal)
+      const chunkEnd   = addDays(snapStartDate, snapPrevTotal + 29)
+      emit('infinite-scroll-load', { startDate: chunkStart, endDate: chunkEnd })
       isInfiniteLoading.value = false
       infiniteScrollTimer = null
     }, 1000)
@@ -1364,9 +1392,79 @@ defineExpose({
   loadReservation(data: GuestProReservationItem[] | GuestProReservationResponse) {
     localReservations.value = transformReservations(data)
   },
+  appendReservation(data: GuestProReservationItem[] | GuestProReservationResponse) {
+    const incoming = transformReservations(data)
+    const existingIds = new Set(localReservations.value.map(r => r.id))
+    const toAdd = incoming.filter(r => !existingIds.has(r.id))
+    if (toAdd.length) localReservations.value = [...localReservations.value, ...toAdd]
+  },
+  updateReservations(data: GuestProReservationItem[] | GuestProReservationResponse) {
+    const incoming = transformReservations(data)
+    const baseId = (id: string) => id.split(';')[0]
+    const updated = [...localReservations.value]
+    for (const next of incoming) {
+      const idx = updated.findIndex(r => baseId(r.id) === baseId(next.id))
+      if (idx !== -1) {
+        updated[idx] = next
+      } else {
+        updated.push(next)
+      }
+    }
+    localReservations.value = updated
+  },
+  revertReservation(reservationId: string, originalRoomId: string) {
+    const baseId = (id: string) => id.split(';')[0]
+    const idx = localReservations.value.findIndex(r => baseId(r.id) === baseId(reservationId))
+    if (idx !== -1) {
+      localReservations.value[idx] = { ...localReservations.value[idx], roomId: originalRoomId }
+    }
+  },
   search(query: string) {
     searchQuery.value = query
     searchActive.value = query.length > 0
+  },
+  setCalendarConfiguration(cfg: {
+    calender_label?: string
+    calender_type?: string
+    calender_use_unallocated?: 0 | 1
+    calender_total_balance?: 0 | 1
+    show_bed_type_after_room_name?: 0 | 1
+    calender_show_hover_tooltips?: string | 0 | 1
+    calender_block_start_midnight?: 0 | 1
+    calender_room_column?: number
+    calender_room_type_column?: number
+    background_color_reservation?: string
+    background_color_tentative?: string
+    background_color_inhouse?: string
+    background_color_checkout?: string
+    background_color_room_maintenance?: string
+    foreground_color_reservation?: string
+    foreground_color_tentative?: string
+    foreground_color_inhouse?: string
+    foreground_color_checkout?: string
+    foreground_color_room_maintenance?: string
+    [key: string]: unknown
+  }) {
+    if (cfg.calender_label                  !== undefined) calConfig.calender_label                  = cfg.calender_label as typeof calConfig.calender_label
+    if (cfg.calender_type                   !== undefined) calConfig.calender_type                   = cfg.calender_type as typeof calConfig.calender_type
+    if (cfg.calender_use_unallocated        !== undefined) calConfig.calender_use_unallocated        = cfg.calender_use_unallocated as 0 | 1
+    if (cfg.calender_total_balance          !== undefined) calConfig.calender_total_balance          = cfg.calender_total_balance as 0 | 1
+    if (cfg.show_bed_type_after_room_name   !== undefined) calConfig.show_bed_type_after_room_name   = cfg.show_bed_type_after_room_name as 0 | 1
+    if (cfg.calender_show_hover_tooltips    !== undefined) calConfig.calender_show_hover_tooltips    = (cfg.calender_show_hover_tooltips == '1' || cfg.calender_show_hover_tooltips === 1) ? 1 : 0
+    if (cfg.calender_block_start_midnight   !== undefined) calConfig.calender_block_start_midnight   = cfg.calender_block_start_midnight as 0 | 1
+    if (cfg.calender_room_column            !== undefined) calConfig.calender_room_column            = cfg.calender_room_column
+    if (cfg.calender_room_type_column       !== undefined) calConfig.calender_room_type_column       = cfg.calender_room_type_column
+    if (cfg.background_color_reservation    !== undefined) calConfig.background_color_reservation    = cfg.background_color_reservation
+    if (cfg.background_color_tentative      !== undefined) calConfig.background_color_tentative      = cfg.background_color_tentative
+    if (cfg.background_color_inhouse        !== undefined) calConfig.background_color_inhouse        = cfg.background_color_inhouse
+    if (cfg.background_color_checkout       !== undefined) calConfig.background_color_checkout       = cfg.background_color_checkout
+    if (cfg.background_color_room_maintenance !== undefined) calConfig.background_color_room_maintenance = cfg.background_color_room_maintenance
+    if (cfg.foreground_color_reservation    !== undefined) calConfig.foreground_color_reservation    = cfg.foreground_color_reservation
+    if (cfg.foreground_color_tentative      !== undefined) calConfig.foreground_color_tentative      = cfg.foreground_color_tentative
+    if (cfg.foreground_color_inhouse        !== undefined) calConfig.foreground_color_inhouse        = cfg.foreground_color_inhouse
+    if (cfg.foreground_color_checkout       !== undefined) calConfig.foreground_color_checkout       = cfg.foreground_color_checkout
+    if (cfg.foreground_color_room_maintenance !== undefined) calConfig.foreground_color_room_maintenance = cfg.foreground_color_room_maintenance
+    applyCalConfig()
   },
   setFilter(filter: CalendarFilter) {
     if (filter.roomColWidth          !== undefined) filterRoomColW.value             = filter.roomColWidth
@@ -1484,14 +1582,14 @@ defineExpose({
 .cal-table td {
   border-right: 2px solid #f3f4f6;
   border-bottom: 2px solid #f3f4f6;
-  height: 48px;
+  height: var(--row-h, 48px);
   position: relative;
   vertical-align: top;
   padding: 0;
   background: #ffffff;
   overflow: hidden;
 }
-.row--with-balance td { height: 72px; }
+.row--with-balance td { height: var(--row-h, 68px); }
 .cal-table td:first-child {
   background: #ffffff;
   border-right: 1px solid #e5e7eb !important;
@@ -1500,7 +1598,7 @@ defineExpose({
 
 /* Room cell */
 .room-cell {
-  padding: 16px 10px!important;
+  padding: 10px!important;
   vertical-align: middle !important;
   display: table-cell;
   background: #fff;
@@ -2013,30 +2111,57 @@ defineExpose({
 /* Infinite scroll loader */
 .rc-inf-loader {
   position: absolute;
-  bottom: 24px;
-  right: 20px;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 7px 13px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 20px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.06);
-  font-size: 12px;
-  font-weight: 500;
-  color: #6b7280;
+  justify-content: center;
+  gap: 9px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  border-top: 2px solid #76b51b;
+  font-size: 13px;
+  font-weight: 600;
+  color: #3a5c0d;
   pointer-events: none;
   z-index: 50;
+  overflow: hidden;
+}
+.rc-inf-loader::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 0;
+  width: 40%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #a3d65a, #76b51b, transparent);
+  animation: inf-sweep 1.1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 .rc-inf-spinner {
-  animation: inf-spin 0.8s linear infinite;
+  animation: inf-spin 0.75s linear infinite;
   color: #76b51b;
   flex-shrink: 0;
 }
 @keyframes inf-spin {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
+}
+@keyframes inf-sweep {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(300%); }
+}
+.inf-loader-enter-active {
+  transition: transform 0.22s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.22s ease-out;
+}
+.inf-loader-leave-active {
+  transition: transform 0.15s ease-in, opacity 0.15s ease-in;
+}
+.inf-loader-enter-from,
+.inf-loader-leave-to {
+  transform: translateY(100%);
+  opacity: 0;
 }
 .inf-loader-enter-active { transition: opacity 0.15s ease-out, transform 0.15s cubic-bezier(0.23,1,0.32,1); }
 .inf-loader-leave-active { transition: opacity 0.15s ease-in, transform 0.12s ease-in; }
@@ -2397,9 +2522,9 @@ defineExpose({
   .room-drag-handle { display: none; }
 
   /* Slightly larger tap targets for room rows */
-  .cal-table td { height: 56px; }
+  .cal-table td { height: var(--row-h, 56px); }
   .section-row td { height: 44px !important; }
-  .row--with-balance td { height: 80px; }
+  .row--with-balance td { height: var(--row-h, 80px); }
 
   /* Toolbar: search field + config button on one row */
   .rc-search-bar { flex-wrap: wrap; gap: 8px; }

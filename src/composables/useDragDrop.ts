@@ -173,14 +173,6 @@ export function useDragDrop(
         return
       }
 
-      const hasConflict = localReservations.value.some(r => {
-        if (r.id === block.id)      return false
-        if (r.roomId !== newRoomId) return false
-        return block.checkIn < r.checkOut && block.checkOut > r.checkIn
-      })
-
-      if (hasConflict) return
-
       const snapshot = { ...localReservations.value.find(r => r.id === block.id)! }
       const idx = localReservations.value.findIndex(r => r.id === block.id)
       if (idx !== -1) {
