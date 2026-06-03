@@ -8,13 +8,13 @@ interface DragDropEmit {
 }
 
 interface PendingMove {
-  id:           string
-  room_id:      string
-  arrival_date: string
+  id:             string
+  room_id:        string
+  arrival_date:   string
   departure_date: string
-  company_id:   string
-  from_room_id: string
-  snapshot:     Reservation
+  company_id:     string
+  from_room_id:   string
+  snapshot:       Reservation
 }
 
 function postFlutterMessage(type: string, payload: unknown) {
@@ -76,28 +76,77 @@ export function useDragDrop(
       targetRoomId: block.roomId,
     }
 
-    // Track whether the pointer moved far enough to count as a drag
     let hasMoved = false
-    const startY = event.clientY
+    const startX   = event.clientX
+    const startY   = event.clientY
+    const elRect   = el.getBoundingClientRect()
+
+    // Ghost element that visually follows the cursor — created on first movement so
+    // a quick click never shows it. Appended to the shadow root so component styles apply.
+    let ghost: HTMLElement | null = null
+
+    function createGhost() {
+      ghost = el.cloneNode(true) as HTMLElement
+      // position: fixed at top/left 0; transform moves it to the correct screen coords.
+      // This avoids any offset calculation from scroll or containing blocks.
+      ghost.style.cssText = `
+        position: fixed;
+        top: 0; left: 0;
+        width: ${elRect.width}px;
+        height: ${elRect.height}px;
+        transform: translate(${elRect.left}px, ${elRect.top}px);
+        pointer-events: none;
+        z-index: 9999;
+        opacity: 0.92;
+        box-shadow: 0 8px 28px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.1);
+        cursor: grabbing;
+        margin: 0;
+        border-radius: 4px;
+        will-change: transform;
+      `
+      const root = el.getRootNode()
+      root instanceof ShadowRoot ? root.appendChild(ghost) : document.body.appendChild(ghost)
+
+      // Dim the original block so it reads as a "source" placeholder
+      el.style.opacity = '0.3'
+    }
 
     function onPointermove(e: PointerEvent) {
       if (!dragState.value) return
-      if (!hasMoved && Math.abs(e.clientY - startY) < 6) return
-      hasMoved = true
+      const dx = e.clientX - startX
+      const dy = e.clientY - startY
 
-      // Temporarily remove the dragged block from hit-testing so elementFromPoint
-      // returns the underlying row and not the block itself (which sits at z-index: 20).
-      // Pointer capture continues to deliver events to el regardless of this CSS flag.
+      if (!hasMoved) {
+        if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return
+        hasMoved = true
+        createGhost()
+      }
+
+      // Translate the ghost directly — no Vue reactivity, stays at 60 fps.
+      if (ghost) {
+        ghost.style.transform = `translate(${elRect.left + dx}px, ${elRect.top + dy}px)`
+      }
+
+      // Detect which room row the cursor is over.
+      // The ghost already has pointer-events:none; temporarily hide el too so
+      // elementFromPoint returns the underlying table row, not the block itself.
       el.style.pointerEvents = 'none'
       const root = el.getRootNode() as ShadowRoot | Document
       const hit  = root.elementFromPoint(e.clientX, e.clientY)
       el.style.pointerEvents = ''
 
       const row = hit?.closest?.('[data-room-id]') as HTMLElement | null
-      if (row?.dataset.roomId) dragState.value.targetRoomId = row.dataset.roomId
+      if (row?.dataset.roomId && row.dataset.roomId !== dragState.value.targetRoomId) {
+        // Only mutate when crossing a row boundary to minimise reactive re-renders.
+        dragState.value.targetRoomId = row.dataset.roomId
+      }
     }
 
     function cleanup() {
+      ghost?.remove()
+      ghost = null
+      el.style.opacity       = ''
+      el.style.pointerEvents = ''
       el.removeEventListener('pointermove',   onPointermove)
       el.removeEventListener('pointerup',     onPointerup)
       el.removeEventListener('pointercancel', onPointercancel)
@@ -115,7 +164,7 @@ export function useDragDrop(
       dragState.value = null
 
       if (!hasMoved || newRoomId === block.roomId) {
-        // Short press with no movement → treat as a click
+        // Short tap / click with no meaningful movement
         const payload = { reservation: { ...block }, room }
         emit('reservation-clicked', payload)
         postFlutterMessage('reservation-clicked', payload)
