@@ -251,66 +251,87 @@
   <!-- Create reservation popover -->
   <div v-if="newResPopover" class="rc-create-popover" :style="popoverStyle">
     <div class="crp-header">
-      <div class="crp-title">Buat Reservasi Baru</div>
-      <div class="crp-dates">
-        {{ formatDateLong(newResPopover.checkIn) }}
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5">
-          <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+      <span class="crp-header-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <rect x="3" y="4" width="18" height="18" rx="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+          <line x1="3" y1="10" x2="21" y2="10"/>
         </svg>
-        {{ formatDateLong(newResPopover.checkOut) }}
-        &nbsp;·&nbsp;{{ nightsBetween(newResPopover.checkIn, newResPopover.checkOut) }} nights
+      </span>
+      <div class="crp-header-text">
+        <div class="crp-title">Create New</div>
+        <div class="crp-dates">
+          {{ formatDateLong(newResPopover.checkIn) }}
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+          </svg>
+          {{ formatDateLong(newResPopover.checkOut) }}
+          <span class="crp-nights-chip">{{ nightsBetween(newResPopover.checkIn, newResPopover.checkOut) }}night(s)</span>
+        </div>
       </div>
+      <button class="crp-close" @click="closePopover" aria-label="Close">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
     </div>
     <div class="crp-divider"></div>
 
     <!-- Create Room Plan -->
-    <button class="crp-item" @click="selectType('room-plan')">
-      <span class="crp-icon crp-icon--plan">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <button class="crp-card crp-card--plan" @click="selectType('room-plan')">
+      <span class="crp-card-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/>
           <line x1="9" y1="21" x2="9" y2="9"/>
         </svg>
       </span>
-      <div class="crp-item-text">
-        <span class="crp-item-label">Create Room Plan</span>
-      </div>
-      <svg class="crp-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <span class="crp-card-label">Create Room Plan</span>
+      <svg class="crp-card-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
       </svg>
     </button>
 
-    <!-- Create Reservation (expandable) -->
-    <button class="crp-item" :class="{ 'is-expanded': newResPopover.showResSub }" @click="newResPopover.showResSub = !newResPopover.showResSub">
-      <span class="crp-icon crp-icon--res">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <!-- Create Reservation — opens right submenu -->
+    <button class="crp-card crp-card--res" :class="{ 'is-active': newResPopover.showResSub }" @click="newResPopover.showResSub = !newResPopover.showResSub">
+      <span class="crp-card-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
         </svg>
       </span>
-      <div class="crp-item-text">
-        <span class="crp-item-label">Create Reservation</span>
-      </div>
-      <svg class="crp-chevron" width="14" height="14" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" :class="{ open: newResPopover.showResSub }">
-        <path d="M2 3.5 L5 6.5 L8 3.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <span class="crp-card-label">Create Reservation</span>
+      <svg class="crp-card-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
       </svg>
     </button>
+  </div>
 
-    <!-- Sub-options -->
-    <div class="crp-sub" :class="{ 'is-visible': newResPopover.showResSub }">
-      <button class="crp-sub-item" @click="selectType('single')">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+  <!-- Reservation type submenu (appears to the right) -->
+  <div v-if="newResPopover?.showResSub" class="rc-res-submenu" :style="subMenuStyle">
+    <button class="rsm-item" @click="selectType('single')">
+      <span class="rsm-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
         </svg>
-        Single Reservation
-      </button>
-      <button class="crp-sub-item" @click="selectType('group')">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="9" cy="8" r="3"/><circle cx="17" cy="8" r="3" opacity="0.6"/>
+      </span>
+      <span class="rsm-label">Single Reservation</span>
+      <svg class="rsm-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+      </svg>
+    </button>
+    <div class="rsm-sep"></div>
+    <button class="rsm-item" @click="selectType('group')">
+      <span class="rsm-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="9" cy="8" r="3"/><circle cx="17" cy="8" r="3" opacity="0.65"/>
           <path d="M2 20c0-3.3 3.1-6 7-6s7 2.7 7 6"/>
-          <path d="M17 14c2.5.4 5 2.4 5 6" opacity="0.6"/>
+          <path d="M17 14c2.5.4 5 2.4 5 6" opacity="0.65"/>
         </svg>
-        Group Reservation
-      </button>
-    </div>
+      </span>
+      <span class="rsm-label">Group Reservation</span>
+      <svg class="rsm-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+      </svg>
+    </button>
   </div>
 
   <!-- Move confirmation dialog -->
@@ -1157,7 +1178,7 @@ const newResPreview = computed(() => {
   return {
     roomId:   d.roomId,
     roomName: d.roomName,
-    left:     minIdx * DAY_COL_W.value + DAY_COL_W.value / 2,
+    left:     minIdx * DAY_COL_W.value + (filterBlockStartMidnight.value ? 0 : DAY_COL_W.value / 2),
     width:    (maxIdx - minIdx + 1) * DAY_COL_W.value,
     checkIn:  days[minIdx].iso,
     checkOut: addDays(days[maxIdx].iso, 1),
@@ -1185,6 +1206,7 @@ const newResTooltipStyle = computed(() => {
   }
 })
 
+const POPOVER_W = 220
 const popoverStyle = computed(() => {
   const p = newResPopover.value
   const preview = frozenPreview.value
@@ -1193,6 +1215,16 @@ const popoverStyle = computed(() => {
     top:       (p.y - 8) + 'px',
     left:      blockCenterX(preview) + 'px',
     transform: 'translate(-50%, -100%)',
+  }
+})
+const subMenuStyle = computed(() => {
+  const p = newResPopover.value
+  const preview = frozenPreview.value
+  if (!p || !preview) return {}
+  return {
+    top:       (p.y - 8) + 'px',
+    left:      (blockCenterX(preview) + POPOVER_W / 2 + 8) + 'px',
+    transform: 'translateY(-100%)',
   }
 })
 
@@ -1256,8 +1288,11 @@ function onCellPointerdown(event: PointerEvent, room: Room, dayIdx: number) {
 }
 
 function onOutsideClick(e: PointerEvent) {
-  const el = (e.target as HTMLElement).closest?.('.rc-create-popover')
-  if (!el) closePopover()
+  const inside = e.composedPath().some((el) => {
+    const cls = (el as HTMLElement).classList
+    return cls?.contains('rc-create-popover') || cls?.contains('rc-res-submenu')
+  })
+  if (!inside) closePopover()
 }
 
 function closePopover() {
@@ -1831,74 +1866,124 @@ defineExpose({
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
-  padding: 4px;
-  box-shadow: 0 16px 48px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.06);
+  padding: 10px 8px 8px;
+  display: flex; flex-direction: column; gap: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
   animation: pop-fade 0.15s ease-out;
 }
 @keyframes pop-fade {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-.crp-header { padding: 8px 10px 6px; }
-.crp-title {
-  font-size: 12px; font-weight: 700; color: #111827;
-  letter-spacing: 0.01em;
-}
-.crp-dates {
-  display: flex; align-items: center; gap: 4px;
-  font-size: 10px; color: #9ca3af; margin-top: 2px;
-  flex-wrap: wrap;
-}
-.crp-divider { height: 1px; background: #f3f4f6; margin: 2px 0; }
-.crp-item {
+
+/* Header */
+.crp-header {
   display: flex; align-items: center; gap: 9px;
-  width: 100%; padding: 8px 10px;
-  background: none; border: none; border-radius: 8px;
-  cursor: pointer; text-align: left;
-  transition: background 0.1s;
+  padding: 0 2px 2px;
 }
-@media (hover: hover) and (pointer: fine) {
-  .crp-item:hover { background: #f9fafb; }
-}
-.crp-item:active { background: #f3f4f6; transform: scale(0.98); }
-.crp-icon {
-  width: 28px; height: 28px; border-radius: 7px;
+.crp-header-icon {
+  width: 36px; height: 36px; border-radius: 9px;
+  background: #eff6ff; color: #2563eb;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.crp-icon--plan { background: #f0f9ff; color: #0284c7; }
-.crp-icon--res  { background: #f0fdf4; color: #16a34a; }
-.crp-item-text { flex: 1; }
-.crp-item-label { font-size: 12px; font-weight: 600; color: #111827; }
-.crp-arrow { color: #d1d5db; flex-shrink: 0; }
-.crp-chevron {
-  color: #9ca3af; flex-shrink: 0;
-  transition: transform 0.18s cubic-bezier(0.23, 1, 0.32, 1);
+.crp-header-text { flex: 1; min-width: 0; }
+.crp-title { font-size: 13px; font-weight: 700; color: #111827; }
+.crp-dates {
+  display: flex; align-items: center; gap: 3px;
+  font-size: 10px; color: #9ca3af; margin-top: 2px;
+  flex-wrap: wrap; line-height: 1.4;
 }
-.crp-chevron.open { transform: rotate(180deg); }
-
-/* Sub-options (expand animation) */
-.crp-sub {
-  overflow: hidden;
-  max-height: 0;
-  transition: max-height 0.22s cubic-bezier(0.23, 1, 0.32, 1),
-              opacity    0.18s cubic-bezier(0.23, 1, 0.32, 1);
-  opacity: 0;
+.crp-dates svg { flex-shrink: 0; color: #d1d5db; }
+.crp-nights-chip {
+  display: inline-flex; align-items: center;
+  padding: 0 5px; border-radius: 20px;
+  background: #f3f4f6; color: #6b7280;
+  font-size: 10px; font-weight: 600;
 }
-.crp-sub.is-visible { max-height: 120px; opacity: 1; }
-.crp-sub-item {
-  display: flex; align-items: center; gap: 8px;
-  width: 100%; padding: 7px 10px 7px 20px;
-  background: none; border: none; border-radius: 7px;
-  cursor: pointer; text-align: left;
-  font-size: 11px; font-weight: 500; color: #374151;
-  transition: background 0.1s;
+.crp-close {
+  width: 24px; height: 24px; border-radius: 6px;
+  background: none; border: none; color: #9ca3af;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.1s, color 0.1s;
 }
 @media (hover: hover) and (pointer: fine) {
-  .crp-sub-item:hover { background: #f9fafb; }
+  .crp-close:hover { background: #f3f4f6; color: #374151; }
 }
-.crp-sub-item:active { background: #f3f4f6; transform: scale(0.98); }
-.crp-sub-item svg { color: #9ca3af; flex-shrink: 0; }
+.crp-close:active { transform: scale(0.9); }
+.crp-divider { height: 1px; background: #f3f4f6; }
+
+/* Card buttons */
+.crp-card {
+  display: flex; align-items: center; gap: 9px;
+  width: 100%; border: none; border-radius: 10px;
+  padding: 9px 10px;
+  cursor: pointer; text-align: left;
+  transition: background 0.1s, transform 0.1s;
+}
+.crp-card:active { transform: scale(0.97); }
+
+/* Room Plan card */
+.crp-card--plan { background: #eff6ff; }
+@media (hover: hover) and (pointer: fine) {
+  .crp-card--plan:hover { background: #dbeafe; }
+}
+.crp-card--plan .crp-card-icon { background: #bfdbfe; color: #2563eb; }
+.crp-card--plan .crp-card-label { color: #1e3a8a; }
+.crp-card--plan .crp-card-arrow { color: #93c5fd; }
+
+/* Reservation card */
+.crp-card--res { background: #16a34a; }
+@media (hover: hover) and (pointer: fine) {
+  .crp-card--res:hover { background: #15803d; }
+}
+.crp-card--res.is-active { background: #15803d; }
+.crp-card--res .crp-card-icon { background: rgba(255,255,255,0.2); color: #fff; }
+.crp-card--res .crp-card-label { color: #fff; }
+.crp-card--res .crp-card-arrow { color: rgba(255,255,255,0.6); }
+
+/* Shared card icon */
+.crp-card-icon {
+  width: 30px; height: 30px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.crp-card-label { flex: 1; font-size: 12px; font-weight: 600; color: #111827; }
+.crp-card-arrow { flex-shrink: 0; color: #d1d5db; }
+
+/* Right submenu */
+.rc-res-submenu {
+  position: fixed; z-index: 9999;
+  width: 196px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  animation: pop-fade 0.12s ease-out;
+}
+.rsm-item {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 9px 10px;
+  background: none; border: none; border-radius: 7px;
+  cursor: pointer; text-align: left;
+  font-size: 12px; font-weight: 500; color: #111827;
+  transition: background 0.1s, transform 0.1s;
+}
+@media (hover: hover) and (pointer: fine) {
+  .rsm-item:hover { background: #f9fafb; }
+}
+.rsm-item:active { background: #f3f4f6; transform: scale(0.97); }
+.rsm-icon {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: #f3f4f6; color: #374151;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.rsm-label { flex: 1; }
+.rsm-arrow { color: #d1d5db; flex-shrink: 0; }
+.rsm-sep { height: 1px; background: #f3f4f6; margin: 2px 0; }
 
 /* Scrollbar */
 .cal-wrap::-webkit-scrollbar { width: 6px; height: 6px; }

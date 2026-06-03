@@ -39,7 +39,7 @@ export interface CalendarConfig {
   visibleDays: number
   /** Pixel width of room column (default 170) */
   roomColWidth?: number
-  /** Pixel width of each day column (default 80) */
+  /** Pixel width of each day column (default 100) */
   dayColWidth?: number
   /** Included in the reservation-moved event payload for move_reservation-v2 API */
   companyId?: string

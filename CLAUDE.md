@@ -29,7 +29,14 @@ A Vue 3 Web Component library that exports a single custom element `<room-calend
 | `src/components/RoomCalendar.ce.vue` | The entire component — template, script, scoped styles |
 | `src/types/index.ts` | All shared TypeScript types |
 | `src/index.ts` | `defineCustomElement` wrapper + `register()` export |
-| `src/composables/useBookingBlocks.ts` | Utility composable (currently unused by the main component) |
+| `src/composables/useBlockLayout.ts` | Computes `left`/`width`/`row`/`totalRows` for every booking block |
+| `src/composables/useDragDrop.ts` | Drag-and-drop state machine for moving reservations |
+| `src/composables/useCalendarDays.ts` | Derives the visible day column array from `CalendarConfig` |
+| `src/composables/useSections.ts` | Manages reactive room sections state |
+| `src/composables/useDateHelpers.ts` | Pure date utilities (`addDays`, `isoToLabel`, `weekLabel`, etc.) |
+| `src/composables/useTooltip.ts` | Tooltip visibility and positioning state |
+| `src/composables/useGuestProAdapter.ts` | Transforms GuestPro API payloads → `RoomSection[]` / `Reservation[]` |
+| `src/composables/useBookingBlocks.ts` | Legacy utility composable (unused by the main component) |
 | `vite.config.ts` | Library build config |
 
 ### Web Component / Shadow DOM constraints
@@ -39,9 +46,9 @@ A Vue 3 Web Component library that exports a single custom element `<room-calend
 - **Never use `@/` path aliases** inside `.ce.vue` files — `vite-plugin-dts` cannot resolve them during type generation. Use relative imports only (e.g. `../types`).
 
 ### Props → `sections`, `reservations`, `config`
-- `sections: RoomSection[]` — room type groups, each containing an array of `Room` objects.
-- `reservations: Reservation[]` — each reservation references a `roomId` and has ISO `checkIn` / `checkOut` dates (check-out is exclusive).
-- `config: CalendarConfig` — `startDate` (ISO), `visibleDays`, optional `dayColWidth` (default 80 px), `roomColWidth` (default 170 px).
+- `sections?: RoomSection[]` — room type groups, each containing an array of `Room` objects. Optional; the GuestPro integration populates this via `setData()` instead.
+- `reservations?: Reservation[]` — each reservation references a `roomId` and has ISO `checkIn` / `checkOut` dates (check-out is exclusive). Optional; `loadReservation()` / `appendReservation()` are the preferred API.
+- `config: CalendarConfig` — `startDate` (ISO), `visibleDays`, optional `dayColWidth` (default **100 px**), `roomColWidth` (default 170 px), optional `companyId` (forwarded in `reservation-moved` events).
 
 When used as a plain HTML custom element, array/object props arrive as JSON strings — any consumer code must call `JSON.parse` before passing them in.
 
@@ -49,11 +56,40 @@ When used as a plain HTML custom element, array/object props arrive as JSON stri
 Blocks are anchored to the **first visible day column** (`idx === 0`) of each room row using `position: absolute`. `left` and `width` are computed from `(checkIn - startDate) / MS_PER_DAY * DAY_COL_W`. The `booking-inner` div shifts rightward (`stickyOffset`) when the block scrolls behind the sticky room column so the guest name stays visible.
 
 ### Emits (native `CustomEvent`, payload in `event.detail`)
-- `reservation-clicked` — `{ reservation, room }`
-- `date-range-changed` — `{ startDate, endDate }`
+Every emit is also forwarded via `postFlutterMessage` for Flutter WebView integration.
+
+| Event | Payload |
+|-------|---------|
+| `reservation-clicked` | `{ reservation: Reservation, room: Room }` |
+| `reservation-moved` | `{ id, room_id, arrival_date, departure_date, company_id, from_room_id }` |
+| `date-range-changed` | `{ startDate: string, endDate: string }` |
+| `new-reservation` | `{ roomId, checkIn, checkOut, type: 'room-plan' \| 'single' \| 'group' }` |
+| `calendar-config-saved` | `Record<string, unknown>` (full cal-config snapshot) |
+| `filter-search` | `{ startDate: string, openAvailability: boolean }` |
+| `infinite-scroll-load` | `{ startDate: string, endDate: string }` (fired when scrolling near the edge) |
 
 ### Public API (`defineExpose`)
-`goToDate(iso)`, `goToToday()` — both fire `date-range-changed`; the caller is responsible for updating `config.startDate`.
+
+**Navigation**
+- `goToDate(iso)` — jumps to a date and fires `date-range-changed`.
+- `goToToday()` — jumps to today and fires `date-range-changed`.
+- The caller is responsible for updating `config.startDate` in response.
+
+**GuestPro data ingestion** (preferred over props for live integration)
+- `setData(chartingRooms: GuestProChartingRoom[])` — replaces all room sections.
+- `loadReservation(data)` — replaces all reservations from a GuestPro payload.
+- `appendReservation(data)` — appends new reservations without clearing existing ones.
+- `updateReservations(data)` — upserts: updates matching reservations, inserts new ones.
+
+**Drag-drop**
+- `revertLastMove()` — undoes the last drag-move (restores the previous room/date).
+
+**Search & filter**
+- `search(query: string)` — client-side text filter over reservation blocks.
+- `setFilter(filter: CalendarFilter)` — applies display options (room order, column widths, label style, etc.) and optionally jumps to a new date range.
+
+**Calendar configuration**
+- `setCalendarConfiguration(cfg)` — sets visual settings (colors, column widths, block label type, unallocated row visibility, etc.) using GuestPro backend field names (`calender_label`, `background_color_reservation`, etc.).
 
 ## Language Rules
 
