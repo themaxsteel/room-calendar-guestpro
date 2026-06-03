@@ -28,6 +28,7 @@ export function useDragDrop(
   emit: DragDropEmit,
   config: Ref<CalendarConfig>,
   allowVerticalDrag: Ref<boolean>,
+  onDragEnd?: () => void,
 ) {
   const dragState   = ref<DragState | null>(null)
   const pendingMove = ref<PendingMove | null>(null)
@@ -150,6 +151,7 @@ export function useDragDrop(
       el.removeEventListener('pointermove',   onPointermove)
       el.removeEventListener('pointerup',     onPointerup)
       el.removeEventListener('pointercancel', onPointercancel)
+      onDragEnd?.()
     }
 
     function onPointercancel() {

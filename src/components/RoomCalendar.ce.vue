@@ -1087,9 +1087,11 @@ const effectiveConfig = computed(() => ({
 }))
 
 
+const { tooltipTarget, tooltipStyle, showTooltip, moveTooltip, hideTooltip } = useTooltip()
+
 const { expandedSections, toggleSection } = useSections(localSections)
 const { visibleDays, weekHeaders }         = useCalendarDays(effectiveConfig)
-const { dragState, pendingMove, confirmMove, cancelMove, onBlockPointerdown } = useDragDrop(localReservations, emit, effectiveConfig, filterAllowVerticalDrag)
+const { dragState, pendingMove, confirmMove, cancelMove, onBlockPointerdown } = useDragDrop(localReservations, emit, effectiveConfig, filterAllowVerticalDrag, hideTooltip)
 const { roomBlocks, wrapRef } = useBlockLayout(localReservations, effectiveConfig, DAY_COL_W)
 const scrollLeft = ref(0)
 let infiniteScrollTimer: ReturnType<typeof setTimeout> | null = null
@@ -1120,8 +1122,6 @@ function onScroll(e: Event) {
     }, 1000)
   }
 }
-
-const { tooltipTarget, tooltipStyle, showTooltip, moveTooltip, hideTooltip } = useTooltip()
 
 // ── New reservation drag-to-create ──────────────────────────────────────────
 const newResDrag    = ref<NewResDragState | null>(null)
