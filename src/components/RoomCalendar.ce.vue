@@ -1328,9 +1328,9 @@ function formatDpDate(iso: string): string {
 }
 
 function openFilterSearch() {
-  // Navigate calendar to show startDate month if set, else today
-  const base = filterSearch.startDate || todayIso
-  const [y, m] = base.split('-').map(Number)
+  // Pre-fill with current calendar start date if nothing selected yet
+  if (!filterSearch.startDate) filterSearch.startDate = effectiveConfig.value.startDate || todayIso
+  const [y, m] = filterSearch.startDate.split('-').map(Number)
   dpYear.value  = y
   dpMonth.value = m - 1
   filterSearchOpen.value = true
