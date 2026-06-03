@@ -30,12 +30,15 @@ export function useDragDrop(
   allowVerticalDrag: Ref<boolean>,
   onDragEnd?: () => void,
 ) {
-  const dragState   = ref<DragState | null>(null)
-  const pendingMove = ref<PendingMove | null>(null)
+  const dragState        = ref<DragState | null>(null)
+  const pendingMove      = ref<PendingMove | null>(null)
+  // Kept after confirmMove so the caller can revert on API error
+  const lastMoveSnapshot = ref<Reservation | null>(null)
 
   function confirmMove() {
     if (!pendingMove.value) return
     const p = pendingMove.value
+    lastMoveSnapshot.value = p.snapshot
     pendingMove.value = null
     const payload = {
       id:             p.id,
@@ -49,10 +52,19 @@ export function useDragDrop(
     postFlutterMessage('reservation-moved', payload)
   }
 
+  function revertLastMove() {
+    const snap = lastMoveSnapshot.value
+    if (!snap) return
+    lastMoveSnapshot.value = null
+    const idx = localReservations.value.findIndex(r => r.id === snap.id)
+    if (idx !== -1) localReservations.value[idx] = snap
+  }
+
   function cancelMove() {
     if (!pendingMove.value) return
     const snap = pendingMove.value.snapshot
     pendingMove.value = null
+    lastMoveSnapshot.value = null
     const idx = localReservations.value.findIndex(r => r.id === snap.id)
     if (idx !== -1) localReservations.value[idx] = snap
   }
@@ -71,114 +83,82 @@ export function useDragDrop(
     const el = event.currentTarget as HTMLElement
     el.setPointerCapture(event.pointerId)
 
+    // Capture shadow root before el is potentially detached by Vue re-render
+    const shadowRoot = el.getRootNode() as ShadowRoot | Document
+    const pointerId  = event.pointerId
+
     dragState.value = {
       blockId:      block.id,
       roomId:       block.roomId,
       targetRoomId: block.roomId,
     }
 
-    let hasMoved = false
-    const startX   = event.clientX
-    const startY   = event.clientY
-    const elRect   = el.getBoundingClientRect()
+    // Snapshot original state at drag start
+    const snapshot = { ...localReservations.value.find(r => r.id === block.id) ?? block }
+    const blockIdx = localReservations.value.findIndex(r => r.id === block.id)
 
-    // Ghost element that visually follows the cursor — created on first movement so
-    // a quick click never shows it. Appended to the shadow root so component styles apply.
-    let ghost: HTMLElement | null = null
-
-    function createGhost() {
-      ghost = el.cloneNode(true) as HTMLElement
-      // position: fixed at top/left 0; transform moves it to the correct screen coords.
-      // This avoids any offset calculation from scroll or containing blocks.
-      ghost.style.cssText = `
-        position: fixed;
-        top: 0; left: 0;
-        width: ${elRect.width}px;
-        height: ${elRect.height}px;
-        transform: translate(${elRect.left}px, ${elRect.top}px);
-        pointer-events: none;
-        z-index: 9999;
-        opacity: 0.92;
-        box-shadow: 0 8px 28px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.1);
-        cursor: grabbing;
-        margin: 0;
-        border-radius: 4px;
-        will-change: transform;
-      `
-      const root = el.getRootNode()
-      root instanceof ShadowRoot ? root.appendChild(ghost) : document.body.appendChild(ghost)
-
-      // Dim the original block so it reads as a "source" placeholder
-      el.style.opacity = '0.3'
-    }
+    let hasMoved  = false
+    const startX  = event.clientX
+    const startY  = event.clientY
 
     function onPointermove(e: PointerEvent) {
-      if (!dragState.value) return
+      if (e.pointerId !== pointerId || !dragState.value) return
       const dx = e.clientX - startX
       const dy = e.clientY - startY
 
       if (!hasMoved) {
         if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return
         hasMoved = true
-        createGhost()
       }
 
-      // Translate the ghost directly — no Vue reactivity, stays at 60 fps.
-      if (ghost) {
-        ghost.style.transform = `translate(${elRect.left + dx}px, ${elRect.top + dy}px)`
-      }
-
-      // Detect which room row the cursor is over.
-      // The ghost already has pointer-events:none; temporarily hide el too so
-      // elementFromPoint returns the underlying table row, not the block itself.
-      el.style.pointerEvents = 'none'
-      const root = el.getRootNode() as ShadowRoot | Document
-      const hit  = root.elementFromPoint(e.clientX, e.clientY)
-      el.style.pointerEvents = ''
-
+      // el may be detached after a room change — use the captured shadow root directly
+      const hit = shadowRoot.elementFromPoint(e.clientX, e.clientY)
       const row = hit?.closest?.('[data-room-id]') as HTMLElement | null
-      if (row?.dataset.roomId && row.dataset.roomId !== dragState.value.targetRoomId) {
-        // Only mutate when crossing a row boundary to minimise reactive re-renders.
-        dragState.value.targetRoomId = row.dataset.roomId
+      const newTargetRoomId = row?.dataset.roomId
+      if (newTargetRoomId && newTargetRoomId !== dragState.value.targetRoomId) {
+        dragState.value.targetRoomId = newTargetRoomId
+        // Move the dimmed block live into the target room row
+        if (blockIdx !== -1) {
+          localReservations.value[blockIdx] = {
+            ...localReservations.value[blockIdx],
+            roomId: newTargetRoomId,
+          }
+        }
       }
     }
 
     function cleanup() {
-      ghost?.remove()
-      ghost = null
-      el.style.opacity       = ''
-      el.style.pointerEvents = ''
-      el.removeEventListener('pointermove',   onPointermove)
-      el.removeEventListener('pointerup',     onPointerup)
-      el.removeEventListener('pointercancel', onPointercancel)
+      document.removeEventListener('pointermove',   onPointermove)
+      document.removeEventListener('pointerup',     onPointerup)
+      document.removeEventListener('pointercancel', onPointercancel)
       onDragEnd?.()
     }
 
-    function onPointercancel() {
+    function onPointercancel(e: PointerEvent) {
+      if (e.pointerId !== pointerId) return
       cleanup()
+      // Revert block to original room
+      if (blockIdx !== -1) localReservations.value[blockIdx] = snapshot
       dragState.value = null
     }
 
-    function onPointerup() {
+    function onPointerup(e: PointerEvent) {
+      if (e.pointerId !== pointerId) return
       cleanup()
 
       const newRoomId = dragState.value?.targetRoomId ?? block.roomId
       dragState.value = null
 
       if (!hasMoved || newRoomId === block.roomId) {
-        // Short tap / click with no meaningful movement
+        // Revert any live room change from micro-drift
+        if (blockIdx !== -1) localReservations.value[blockIdx] = snapshot
         const payload = { reservation: { ...block }, room }
         emit('reservation-clicked', payload)
         postFlutterMessage('reservation-clicked', payload)
         return
       }
 
-      const snapshot = { ...localReservations.value.find(r => r.id === block.id)! }
-      const idx = localReservations.value.findIndex(r => r.id === block.id)
-      if (idx !== -1) {
-        localReservations.value[idx] = { ...localReservations.value[idx], roomId: newRoomId }
-      }
-
+      // Block is already at newRoomId (moved live during drag)
       pendingMove.value = {
         id:             block.id,
         room_id:        newRoomId,
@@ -190,10 +170,12 @@ export function useDragDrop(
       }
     }
 
-    el.addEventListener('pointermove',   onPointermove)
-    el.addEventListener('pointerup',     onPointerup)
-    el.addEventListener('pointercancel', onPointercancel)
+    // Use document-level listeners so events keep firing even after el is
+    // detached from the DOM (which happens when Vue moves the block to a new row).
+    document.addEventListener('pointermove',   onPointermove)
+    document.addEventListener('pointerup',     onPointerup)
+    document.addEventListener('pointercancel', onPointercancel)
   }
 
-  return { dragState, pendingMove, confirmMove, cancelMove, onBlockPointerdown }
+  return { dragState, pendingMove, confirmMove, cancelMove, revertLastMove, onBlockPointerdown }
 }

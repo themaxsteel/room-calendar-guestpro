@@ -371,7 +371,7 @@ async function moveReservation(payload) {
     })
     const json = await res.json().catch(() => null)
     if (!res.ok || json?.error) {
-      cal.revertReservation(payload.id, payload.from_room_id)
+      cal.revertLastMove()
       showToast('error', json?.message || `Move failed (HTTP ${res.status})`)
       return
     }
@@ -380,7 +380,7 @@ async function moveReservation(payload) {
       cal.updateReservations(hotReload)
     }
   } catch (err) {
-    cal.revertReservation(payload.id, payload.from_room_id)
+    cal.revertLastMove()
     showToast('error', 'Move failed — network error')
   } finally {
     loader.classList.remove('show')

@@ -353,12 +353,6 @@
             <div class="rcd-move-room-row">
               <span class="rcd-move-room">{{ roomById.get(pendingMove.from_room_id)?.name ?? pendingMove.from_room_id }}</span>
             </div>
-            <div class="rcd-move-date-row">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round">
-                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-              <span class="rcd-move-dates">{{ formatDateRange(pendingMove.snapshot.checkIn, pendingMove.snapshot.checkOut) }}</span>
-            </div>
           </div>
 
           <div class="rcd-arrow-circle">
@@ -372,22 +366,16 @@
             <div class="rcd-move-room-row">
               <span class="rcd-move-room rcd-move-room--new">{{ roomById.get(pendingMove.room_id)?.name ?? pendingMove.room_id }}</span>
             </div>
-            <div class="rcd-move-date-row">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round">
-                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-              <span class="rcd-move-dates">{{ formatDateRange(pendingMove.arrival_date, pendingMove.departure_date) }}</span>
-            </div>
           </div>
         </div>
 
-        <!-- Nights + paid -->
+        <!-- Date + nights + paid -->
         <div v-if="pendingMove" class="rcd-meta-card">
           <div class="rcd-meta-left">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
-            <span class="rcd-nights">{{ nightsBetween(pendingMove.arrival_date, pendingMove.departure_date) }} nights</span>
+            <span class="rcd-nights">{{ formatDateRange(pendingMove.arrival_date, pendingMove.departure_date) }} · {{ nightsBetween(pendingMove.arrival_date, pendingMove.departure_date) }} nights</span>
           </div>
           <div class="rcd-paid" :class="{ 'rcd-paid--full': pendingMove.snapshot.paidPercent === 100 }">
             <svg v-if="pendingMove.snapshot.paidPercent === 100" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
@@ -656,7 +644,7 @@
             </div>
 
             <div class="rc-cfg-row rc-cfg-row--toggle">
-              <label class="rc-cfg-label">Block Starts at 00:00</label>
+              <label class="rc-cfg-label">Reservation Starts at 00:00</label>
               <button class="rc-cfg-toggle" :class="{ 'is-on': calConfig.calender_block_start_midnight === 1 }" @click="calConfig.calender_block_start_midnight = calConfig.calender_block_start_midnight === 1 ? 0 : 1">
                 <span class="rc-cfg-toggle-thumb"></span>
               </button>
@@ -870,7 +858,7 @@ const calConfig = reactive({
   calender_total_balance:          0 as 0 | 1,
   show_bed_type_after_room_name:   0 as 0 | 1,
   calender_show_hover_tooltips:    1 as 0 | 1,
-  calender_block_start_midnight:   0 as 0 | 1,
+  calender_block_start_midnight:   1 as 0 | 1,
 })
 
 const calConfigStyle = computed(() => ({
@@ -1119,7 +1107,7 @@ const { tooltipTarget, tooltipStyle, showTooltip, moveTooltip, hideTooltip } = u
 
 const { expandedSections, toggleSection } = useSections(localSections)
 const { visibleDays, weekHeaders }         = useCalendarDays(effectiveConfig)
-const { dragState, pendingMove, confirmMove, cancelMove, onBlockPointerdown } = useDragDrop(localReservations, emit, effectiveConfig, filterAllowVerticalDrag, hideTooltip)
+const { dragState, pendingMove, confirmMove, cancelMove, revertLastMove, onBlockPointerdown } = useDragDrop(localReservations, emit, effectiveConfig, filterAllowVerticalDrag, hideTooltip)
 const { roomBlocks, roomTotalRows, wrapRef } = useBlockLayout(localReservations, effectiveConfig, DAY_COL_W, filterBlockStartMidnight)
 const scrollLeft = ref(0)
 let infiniteScrollTimer: ReturnType<typeof setTimeout> | null = null
@@ -1417,12 +1405,8 @@ defineExpose({
     }
     localReservations.value = updated
   },
-  revertReservation(reservationId: string, originalRoomId: string) {
-    const baseId = (id: string) => id.split(';')[0]
-    const idx = localReservations.value.findIndex(r => baseId(r.id) === baseId(reservationId))
-    if (idx !== -1) {
-      localReservations.value[idx] = { ...localReservations.value[idx], roomId: originalRoomId }
-    }
+  revertLastMove() {
+    revertLastMove()
   },
   search(query: string) {
     searchQuery.value = query
@@ -1701,8 +1685,7 @@ defineExpose({
 }
 .booking-block.is-dragged {
   cursor: grabbing;
-  opacity: 0.88;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.08);
+  opacity: 0.45;
   z-index: 20;
 }
 /* Suppress hover on non-dragged blocks while a drag is active */
