@@ -105,9 +105,7 @@
               'row-search-match': searchQuery && matchingRoomIds.has(room.id),
               'row--with-balance': filterShowTotalBalance,
             }"
-            :style="roomTotalRows(room.id) > 1
-              ? { '--row-h': (filterShowTotalBalance ? 72 : 48) * roomTotalRows(room.id) + 'px' }
-              : undefined"
+            :style="{ '--row-h': baseRowHeight * roomTotalRows(room.id) + 'px' }"
           >
             <td
               class="room-cell col-room"
@@ -151,8 +149,8 @@
                   :style="{
                     left:   block.left + 'px',
                     width:  block.width + 'px',
-                    top:    block.totalRows > 1 ? `calc(${block.row / block.totalRows * 100}% + 3px)`         : '5px',
-                    bottom: block.totalRows > 1 ? `calc(${(block.totalRows - block.row - 1) / block.totalRows * 100}% + 3px)` : '5px',
+                    top:    block.totalRows > 1 ? `calc(${block.row / block.totalRows * 100}% + 2px)`                         : '0',
+                    bottom: block.totalRows > 1 ? `calc(${(block.totalRows - block.row - 1) / block.totalRows * 100}% + 2px)` : '0',
                   }"
                   @pointerdown.stop.prevent="onBlockPointerdown($event, block, room)"
                   @mouseenter="showTooltip($event, block, room)"
@@ -846,7 +844,7 @@ const filterShowTotalBalance    = ref(false)
 const filterShowBedName         = ref(false)
 const filterShowReservationDetail = ref(true)
 const filterCalendarLabel         = ref<'guest-name' | 'folio'>('guest-name')
-const filterBlockStartMidnight    = ref(false)
+const filterBlockStartMidnight    = ref(true)
 const filterShowFolioSecondary  = ref(false)
 const filterAllowVerticalDrag = ref(true)
 
@@ -937,6 +935,13 @@ function saveCalConfig() {
 const resizedRoomColW   = ref<number | null>(null)
 const isResizingRoomCol = ref(false)
 const ROOM_COL_W = computed(() => resizedRoomColW.value ?? filterRoomColW.value ?? props.config.roomColWidth ?? 170)
+
+const baseRowHeight = computed(() => {
+  const lines = 1
+    + (filterShowFolioSecondary.value ? 1 : 0)
+    + (filterShowTotalBalance.value   ? 1 : 0)
+  return lines === 1 ? 34 : lines === 2 ? 40 : 60
+})
 
 function onRoomColResizeStart(e: PointerEvent) {
   const startX = e.clientX
@@ -1582,14 +1587,13 @@ defineExpose({
 .cal-table td {
   border-right: 2px solid #f3f4f6;
   border-bottom: 2px solid #f3f4f6;
-  height: var(--row-h, 48px);
+  height: var(--row-h, 34px);
   position: relative;
   vertical-align: top;
   padding: 0;
   background: #ffffff;
   overflow: hidden;
 }
-.row--with-balance td { height: var(--row-h, 68px); }
 .cal-table td:first-child {
   background: #ffffff;
   border-right: 1px solid #e5e7eb !important;
@@ -1598,7 +1602,7 @@ defineExpose({
 
 /* Room cell */
 .room-cell {
-  padding: 10px!important;
+  padding: 0px 10px!important;
   vertical-align: middle !important;
   display: table-cell;
   background: #fff;
@@ -1657,7 +1661,7 @@ defineExpose({
 /* Booking block */
 .booking-block {
   position: absolute;
-  top: 5px; bottom: 5px;
+  top: 0; bottom: 0;
   border-radius: 4px;
   background: #16a34a;
   border-left: 3px solid #15803d;
@@ -2522,9 +2526,8 @@ defineExpose({
   .room-drag-handle { display: none; }
 
   /* Slightly larger tap targets for room rows */
-  .cal-table td { height: var(--row-h, 56px); }
+  .cal-table td { height: var(--row-h, 34px); }
   .section-row td { height: 44px !important; }
-  .row--with-balance td { height: var(--row-h, 80px); }
 
   /* Toolbar: search field + config button on one row */
   .rc-search-bar { flex-wrap: wrap; gap: 8px; }
