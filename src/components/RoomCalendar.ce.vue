@@ -1021,9 +1021,10 @@ function isSearchMatch(block: { guestName: string; folioNumber: string }): boole
 }
 
 function clearSearch() {
-  searchQuery.value    = ''
-  searchActive.value   = false
-  searchNavIndex.value = 0
+  searchQuery.value             = ''
+  searchActive.value            = false
+  searchNavIndex.value          = 0
+  filterStartDateOverride.value = null
 }
 
 const localSections = ref<RoomSection[]>([...props.sections])
