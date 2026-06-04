@@ -1079,18 +1079,11 @@ const searchResults = computed(() => {
     .sort((a, b) => a.checkIn.localeCompare(b.checkIn))
 })
 
-const searchNavIndex    = ref(0)
-const preSearchStartDate = ref<string | null>(null)
+const searchNavIndex = ref(0)
 
 watch(searchResults, (results) => {
   searchNavIndex.value = 0
-  if (results.length > 0) {
-    // Capture current date before the first jump
-    if (preSearchStartDate.value === null) {
-      preSearchStartDate.value = effectiveConfig.value.startDate
-    }
-    searchNavJump(results, 0)
-  }
+  if (results.length > 0) searchNavJump(results, 0)
 })
 
 function searchNavJump(results: typeof searchResults.value, idx: number) {
