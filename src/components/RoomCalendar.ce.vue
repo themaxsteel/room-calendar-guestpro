@@ -196,6 +196,16 @@
                         <span v-if="filterShowTotalBalance && block.totalBalance != null" class="b-balance">{{ formatBalance(block.totalBalance) }}</span>
                         <span v-else-if="filterShowTotalBalance" class="b-paid">Paid {{ block.paidPercent }}%</span>
                       </div>
+                      <template v-if="block.agentName">
+                        <img
+                          v-if="getAgentLogoUrl(block.agentName, agentLogoBaseUrl)"
+                          class="agent-logo"
+                          :src="getAgentLogoUrl(block.agentName, agentLogoBaseUrl)!"
+                          :alt="block.agentName"
+                          @error="($event.target as HTMLImageElement).style.display = 'none'"
+                        />
+                        <span v-else class="agent-chip">{{ getAgentShortLabel(block.agentName) }}</span>
+                      </template>
                     </template>
                   </div>
                 </div>
@@ -817,6 +827,7 @@ import { addDays, todayIso, formatDateLong, formatDateRange, nightsBetween } fro
 import { useTooltip } from '../composables/useTooltip'
 import { transformRoomCharting, transformReservations } from '../composables/useGuestProAdapter'
 import type { GuestProChartingRoom, GuestProReservationItem, GuestProReservationResponse } from '../composables/useGuestProAdapter'
+import { getAgentLogoUrl, getAgentShortLabel } from '../composables/useAgentLogos'
 
 function postFlutterMessage(type: string, payload: unknown) {
   if (typeof window !== 'undefined' && (window as any).Flutter) {
@@ -848,6 +859,7 @@ const emit = defineEmits<{
 }>()
 
 const DAY_COL_W = computed(() => props.config.dayColWidth ?? 100)
+const agentLogoBaseUrl = computed(() => props.config.agentLogoBaseUrl ?? '/agents/')
 
 // Filter overrides (set via setFilter())
 const filterRoomColW            = ref<number | null>(null)
@@ -1809,6 +1821,23 @@ defineExpose({
 .b-name  { font-size: 12px; font-weight: 600; color: var(--block-fg, #fff); }
 .b-folio { font-size: 11px;  color: #ffffff; opacity: 1; }
 .b-paid  { font-size: 11px;  color: #ffffff; opacity: 1; }
+.agent-logo {
+  width: 20px; height: 20px;
+  object-fit: contain;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.15);
+  flex-shrink: 0;
+}
+.agent-chip {
+  font-size: 9px; font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.25);
+  color: #fff;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 
 /* Tooltip */
 .rc-tooltip {

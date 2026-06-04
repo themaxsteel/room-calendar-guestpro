@@ -49,6 +49,7 @@ export interface GuestProReservationItem {
   total?: number | string
   total_paid?: number | string
   is_cancelled?: number
+  agent_name?: string | null
   [key: string]: unknown
 }
 
@@ -118,6 +119,7 @@ export function transformReservations(
       checkOut,
       paidPercent,
       status: normalizeReservationStatus(s),
+      agentName: item.agent_name ?? undefined,
     })
   }
   return result

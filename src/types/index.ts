@@ -30,6 +30,8 @@ export interface Reservation {
   paidPercent: number
   status: ReservationStatus
   totalBalance?: number
+  /** OTA / agent name, e.g. "Booking.com", "WALK_IN", "Traveloka" */
+  agentName?: string
 }
 
 export interface CalendarConfig {
@@ -43,6 +45,8 @@ export interface CalendarConfig {
   dayColWidth?: number
   /** Included in the reservation-moved event payload for move_reservation-v2 API */
   companyId?: string
+  /** Base URL for agent logo images, e.g. "/agents/" or "https://cdn.example.com/agents/" (default: "/agents/") */
+  agentLogoBaseUrl?: string
 }
 
 export interface BlockLayout extends Reservation {
