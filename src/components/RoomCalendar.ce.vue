@@ -1021,10 +1021,11 @@ function isSearchMatch(block: { guestName: string; folioNumber: string }): boole
 }
 
 function clearSearch() {
-  searchQuery.value    = ''
-  searchActive.value   = false
-  searchNavIndex.value = 0
-  filterStartDateOverride.value = null
+  searchQuery.value             = ''
+  searchActive.value            = false
+  searchNavIndex.value          = 0
+  filterStartDateOverride.value = preSearchStartDate.value
+  preSearchStartDate.value      = null
 }
 
 const localSections = ref<RoomSection[]>([...props.sections])
@@ -1070,11 +1071,18 @@ const searchResults = computed(() => {
     .sort((a, b) => a.checkIn.localeCompare(b.checkIn))
 })
 
-const searchNavIndex = ref(0)
+const searchNavIndex    = ref(0)
+const preSearchStartDate = ref<string | null>(null)
 
 watch(searchResults, (results) => {
   searchNavIndex.value = 0
-  if (results.length > 0) searchNavJump(results, 0)
+  if (results.length > 0) {
+    // Capture current date before the first jump
+    if (preSearchStartDate.value === null) {
+      preSearchStartDate.value = effectiveConfig.value.startDate
+    }
+    searchNavJump(results, 0)
+  }
 })
 
 function searchNavJump(results: typeof searchResults.value, idx: number) {
