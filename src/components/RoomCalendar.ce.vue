@@ -198,20 +198,6 @@
                     <!-- Regular reservation -->
                     <template v-else>
                       <div class="b-left-col">
-                        <template v-if="block.agentName">
-                          <!-- SVG icon agents (BOOKING_ENGINE, WALK_IN, DIRECT) -->
-                          <svg v-if="getAgentIcon(block.agentName)" class="agent-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path :d="AGENT_ICON_PATHS[getAgentIcon(block.agentName)!]" />
-                          </svg>
-                          <!-- File logo -->
-                          <img
-                            v-else-if="getAgentLogoUrl(block.agentName, agentLogoBaseUrl)"
-                            class="agent-logo"
-                            :src="getAgentLogoUrl(block.agentName, agentLogoBaseUrl)!"
-                            :alt="block.agentName"
-                            @error="($event.target as HTMLImageElement).style.display = 'none'"
-                          />
-                        </template>
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
                           stroke="currentColor"
                           stroke-width="2.5">
@@ -846,7 +832,6 @@ import { addDays, todayIso, formatDateLong, formatDateRange, nightsBetween } fro
 import { useTooltip } from '../composables/useTooltip'
 import { transformRoomCharting, transformReservations } from '../composables/useGuestProAdapter'
 import type { GuestProChartingRoom, GuestProReservationItem, GuestProReservationResponse } from '../composables/useGuestProAdapter'
-import { getAgentLogoUrl, getAgentIcon, AGENT_ICON_PATHS } from '../composables/useAgentLogos'
 
 function postFlutterMessage(type: string, payload: unknown) {
   if (typeof window !== 'undefined' && (window as any).Flutter) {
@@ -878,7 +863,6 @@ const emit = defineEmits<{
 }>()
 
 const DAY_COL_W = computed(() => props.config.dayColWidth ?? 100)
-const agentLogoBaseUrl = computed(() => props.config.agentLogoBaseUrl ?? '/agents/')
 
 // Filter overrides (set via setFilter())
 const filterRoomColW            = ref<number | null>(null)
