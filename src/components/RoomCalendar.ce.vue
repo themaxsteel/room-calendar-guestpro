@@ -89,7 +89,13 @@
               <span class="section-dot" :style="{ background: section.color }"></span>
               {{ section.label }} ({{ section.rooms.length }})
             </td>
-            <td v-for="day in visibleDays" :key="day.iso" class="section-rest"></td>
+            <td v-for="day in visibleDays" :key="day.iso" class="section-rest">
+              <span
+                v-if="sectionAvailability.get(section.id)?.get(day.iso) !== undefined"
+                class="avail-badge"
+                :class="availClass(sectionAvailability.get(section.id)!.get(day.iso)!, section.rooms.length)"
+              >{{ sectionAvailability.get(section.id)!.get(day.iso) }}</span>
+            </td>
           </tr>
           <!-- Room rows -->
           <tr
@@ -1054,6 +1060,41 @@ const displaySections = computed((): RoomSection[] => {
   return sections
 })
 
+// ── Section availability (available rooms per day per section) ───────────────
+const sectionAvailability = computed((): Map<string, Map<string, number>> => {
+  const result = new Map<string, Map<string, number>>()
+  const days = visibleDays.value.map(d => d.iso)
+
+  for (const section of displaySections.value) {
+    const roomIds = new Set(section.rooms.map(r => r.id))
+    const occupiedByDay = new Map<string, Set<string>>()
+
+    for (const day of days) occupiedByDay.set(day, new Set())
+
+    for (const res of localReservations.value) {
+      if (!roomIds.has(res.roomId)) continue
+      if (res.status === 'CHECK-OUT') continue
+      for (const day of days) {
+        if (res.checkIn <= day && day < res.checkOut)
+          occupiedByDay.get(day)!.add(res.roomId)
+      }
+    }
+
+    const dayMap = new Map<string, number>()
+    for (const day of days)
+      dayMap.set(day, section.rooms.length - occupiedByDay.get(day)!.size)
+    result.set(section.id, dayMap)
+  }
+  return result
+})
+
+function availClass(available: number, total: number): string {
+  if (available === 0) return 'avail-none'
+  if (available / total <= 0.3) return 'avail-low'
+  if (available / total <= 0.6) return 'avail-mid'
+  return 'avail-ok'
+}
+
 // ── Row drag-to-reorder (normal mode only) ────────────────────────────────────
 const rowDragState = ref<{ roomId: string; fromIdx: number; toIdx: number } | null>(null)
 
@@ -1662,7 +1703,23 @@ defineExpose({
 .section-rest {
   background: #f5f5f5 !important;
   border-right: none !important;
+  text-align: center;
+  vertical-align: middle;
 }
+.avail-badge {
+  display: inline-block;
+  min-width: 22px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 18px;
+  letter-spacing: 0;
+}
+.avail-ok   { background: #dcfce7; color: #166534; }
+.avail-mid  { background: #fef9c3; color: #854d0e; }
+.avail-low  { background: #fee2e2; color: #991b1b; }
+.avail-none { background: #f3f4f6; color: #9ca3af; }
 .section-dot {
   display: inline-block; width: 7px; height: 7px;
   border-radius: 50%; margin-right: 7px;
