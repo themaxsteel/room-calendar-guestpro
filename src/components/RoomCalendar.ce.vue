@@ -93,7 +93,7 @@
               <span
                 v-if="sectionAvailability.get(section.id)?.get(day.iso) !== undefined"
                 class="avail-badge"
-                :class="availClass(sectionAvailability.get(section.id)!.get(day.iso)!, section.rooms.length)"
+                :class="availClass(sectionAvailability.get(section.id)!.get(day.iso)!, section.rooms.filter(r => r.status !== 'UL').length)"
               >{{ sectionAvailability.get(section.id)!.get(day.iso) }}</span>
             </td>
           </tr>
@@ -1066,7 +1066,8 @@ const sectionAvailability = computed((): Map<string, Map<string, number>> => {
   const days = visibleDays.value.map(d => d.iso)
 
   for (const section of displaySections.value) {
-    const roomIds = new Set(section.rooms.map(r => r.id))
+    const allocatedRooms = section.rooms.filter(r => r.status !== 'UL')
+    const roomIds = new Set(allocatedRooms.map(r => r.id))
     const occupiedByDay = new Map<string, Set<string>>()
 
     for (const day of days) occupiedByDay.set(day, new Set())
@@ -1082,7 +1083,7 @@ const sectionAvailability = computed((): Map<string, Map<string, number>> => {
 
     const dayMap = new Map<string, number>()
     for (const day of days)
-      dayMap.set(day, section.rooms.length - occupiedByDay.get(day)!.size)
+      dayMap.set(day, allocatedRooms.length - occupiedByDay.get(day)!.size)
     result.set(section.id, dayMap)
   }
   return result
