@@ -93,7 +93,7 @@
               <span
                 v-if="sectionAvailability.get(section.id)?.get(day.iso) !== undefined"
                 class="avail-badge"
-                :class="availClass(sectionAvailability.get(section.id)!.get(day.iso)!, section.rooms.filter(r => r.status !== 'UL').length)"
+                :class="availClass(sectionAvailability.get(section.id)!.get(day.iso)!, 0)"
               >{{ sectionAvailability.get(section.id)!.get(day.iso) }}</span>
             </td>
           </tr>
@@ -1078,34 +1078,8 @@ const displaySections = computed((): RoomSection[] => {
   return sections
 })
 
-// ── Section availability (available rooms per day per section) ───────────────
-const sectionAvailability = computed((): Map<string, Map<string, number>> => {
-  const result = new Map<string, Map<string, number>>()
-  const days = visibleDays.value.map(d => d.iso)
-
-  for (const section of displaySections.value) {
-    const allocatedRooms = section.rooms.filter(r => r.status !== 'UL')
-    const roomIds = new Set(allocatedRooms.map(r => r.id))
-    const occupiedByDay = new Map<string, Set<string>>()
-
-    for (const day of days) occupiedByDay.set(day, new Set())
-
-    for (const res of localReservations.value) {
-      if (!roomIds.has(res.roomId)) continue
-      if (res.status === 'CHECK-OUT') continue
-      for (const day of days) {
-        if (res.checkIn <= day && day < res.checkOut)
-          occupiedByDay.get(day)!.add(res.roomId)
-      }
-    }
-
-    const dayMap = new Map<string, number>()
-    for (const day of days)
-      dayMap.set(day, allocatedRooms.length - occupiedByDay.get(day)!.size)
-    result.set(section.id, dayMap)
-  }
-  return result
-})
+// ── Section availability (set externally via setAvailability()) ──────────────
+const sectionAvailability = ref<Map<string, Map<string, number>>>(new Map())
 
 function availClass(available: number, _total: number): string {
   return available > 0 ? 'avail-ok' : 'avail-none'
@@ -1473,6 +1447,15 @@ defineExpose({
   },
   setData(chartingRooms: GuestProChartingRoom[]) {
     localSections.value = transformRoomCharting(chartingRooms)
+  },
+  setAvailability(data: { data: { room_type_id: string; total: number; availability: { date: string; available: number }[] }[] }) {
+    const map = new Map<string, Map<string, number>>()
+    for (const entry of data.data) {
+      const dayMap = new Map<string, number>()
+      for (const a of entry.availability) dayMap.set(a.date, a.available)
+      map.set(entry.room_type_id, dayMap)
+    }
+    sectionAvailability.value = map
   },
   loadReservation(data: GuestProReservationItem[] | GuestProReservationResponse) {
     localReservations.value = transformReservations(data)
