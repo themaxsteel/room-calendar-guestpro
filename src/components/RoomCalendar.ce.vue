@@ -1703,8 +1703,8 @@ defineExpose({
 .section-rest {
   background: #f5f5f5 !important;
   border-right: none !important;
-  text-align: center;
-  vertical-align: middle;
+  text-align: center !important;
+  vertical-align: middle !important;
 }
 .avail-badge {
   display: inline-block;
