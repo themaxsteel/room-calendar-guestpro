@@ -1024,6 +1024,10 @@ function clearSearch() {
   searchQuery.value    = ''
   searchActive.value   = false
   searchNavIndex.value = 0
+  const startDate = effectiveConfig.value.startDate
+  const payload = { startDate, endDate: addDays(startDate, effectiveConfig.value.visibleDays - 1) }
+  emit('date-range-changed', payload)
+  postFlutterMessage('date-range-changed', payload)
 }
 
 const localSections = ref<RoomSection[]>([...props.sections])
