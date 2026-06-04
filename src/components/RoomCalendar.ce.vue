@@ -184,28 +184,30 @@
                     </template>
                     <!-- Regular reservation -->
                     <template v-else>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor"
-                        stroke-width="2.5">
-                        <circle cx="12" cy="8" r="4"/>
-                        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-                      </svg>
+                      <div class="b-left-col">
+                        <template v-if="block.agentName">
+                          <img
+                            v-if="getAgentLogoUrl(block.agentName, agentLogoBaseUrl)"
+                            class="agent-logo"
+                            :src="getAgentLogoUrl(block.agentName, agentLogoBaseUrl)!"
+                            :alt="block.agentName"
+                            @error="($event.target as HTMLImageElement).style.display = 'none'"
+                          />
+                          <span v-else class="agent-chip">{{ getAgentShortLabel(block.agentName) }}</span>
+                        </template>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.5">
+                          <circle cx="12" cy="8" r="4"/>
+                          <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                        </svg>
+                      </div>
                       <div class="b-texts">
                         <span class="b-name">{{ filterCalendarLabel === 'folio' ? 'Folio #' + block.folioNumber : block.guestName }}</span>
                         <span v-if="filterShowFolioSecondary" class="b-folio">Folio #{{ block.folioNumber }}</span>
                         <span v-if="filterShowTotalBalance && block.totalBalance != null" class="b-balance">{{ formatBalance(block.totalBalance) }}</span>
                         <span v-else-if="filterShowTotalBalance" class="b-paid">Paid {{ block.paidPercent }}%</span>
                       </div>
-                      <template v-if="block.agentName">
-                        <img
-                          v-if="getAgentLogoUrl(block.agentName, agentLogoBaseUrl)"
-                          class="agent-logo"
-                          :src="getAgentLogoUrl(block.agentName, agentLogoBaseUrl)!"
-                          :alt="block.agentName"
-                          @error="($event.target as HTMLImageElement).style.display = 'none'"
-                        />
-                        <span v-else class="agent-chip">{{ getAgentShortLabel(block.agentName) }}</span>
-                      </template>
                     </template>
                   </div>
                 </div>
@@ -1806,7 +1808,7 @@ defineExpose({
 
 .booking-inner {
   position: absolute;
-  top: 0; bottom: 0; left: 8px;
+  top: 0; bottom: 0; left: 0;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1816,16 +1818,24 @@ defineExpose({
   color: var(--block-fg, #fff);
   will-change: transform;
 }
-.booking-inner > svg { opacity: 0.75; }
+.b-left-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.b-left-col > svg { opacity: 0.75; }
 .b-texts { display: flex; flex-direction: column; justify-content: center; gap: 1px; }
 .b-name  { font-size: 12px; font-weight: 600; color: var(--block-fg, #fff); }
 .b-folio { font-size: 11px;  color: #ffffff; opacity: 1; }
 .b-paid  { font-size: 11px;  color: #ffffff; opacity: 1; }
 .agent-logo {
-  width: 20px; height: 20px;
+  width: 18px; height: 18px;
   object-fit: contain;
   border-radius: 3px;
-  background: rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.9);
   flex-shrink: 0;
 }
 .agent-chip {
