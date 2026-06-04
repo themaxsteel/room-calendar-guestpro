@@ -14,6 +14,7 @@
         @focus="searchActive = true"
         @blur="searchActive = searchQuery.length > 0"
         @keydown.esc="clearSearch"
+        @input="onSearchInput"
       >
       <Transition name="search-clear-fade">
         <button v-if="searchQuery" class="rc-search-clear" @mousedown.prevent="clearSearch" title="Clear">
@@ -1015,6 +1016,12 @@ const searchActive       = ref(false)
 const searchInputRef     = ref<HTMLInputElement | null>(null)
 const preSearchStartDate = ref<string | null>(null)
 
+function onSearchInput() {
+  if (!preSearchStartDate.value && searchQuery.value) {
+    preSearchStartDate.value = effectiveConfig.value.startDate
+  }
+}
+
 function isSearchMatch(block: { guestName: string; folioNumber: string }): boolean {
   const q = searchQuery.value.toLowerCase().trim()
   if (!q) return true
@@ -1076,13 +1083,7 @@ const searchNavIndex = ref(0)
 
 watch(searchResults, (results) => {
   searchNavIndex.value = 0
-  if (results.length > 0) {
-    // Capture before first jump — props.config.startDate is still the original here
-    if (!preSearchStartDate.value) {
-      preSearchStartDate.value = props.config.startDate ?? todayIso
-    }
-    searchNavJump(results, 0)
-  }
+  if (results.length > 0) searchNavJump(results, 0)
 })
 
 function searchNavJump(results: typeof searchResults.value, idx: number) {
