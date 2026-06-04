@@ -186,14 +186,18 @@
                     <template v-else>
                       <div class="b-left-col">
                         <template v-if="block.agentName">
+                          <!-- SVG icon agents (BOOKING_ENGINE, WALK_IN, DIRECT) -->
+                          <svg v-if="getAgentIcon(block.agentName)" class="agent-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path :d="AGENT_ICON_PATHS[getAgentIcon(block.agentName)!]" />
+                          </svg>
+                          <!-- File logo -->
                           <img
-                            v-if="getAgentLogoUrl(block.agentName, agentLogoBaseUrl)"
+                            v-else-if="getAgentLogoUrl(block.agentName, agentLogoBaseUrl)"
                             class="agent-logo"
                             :src="getAgentLogoUrl(block.agentName, agentLogoBaseUrl)!"
                             :alt="block.agentName"
                             @error="($event.target as HTMLImageElement).style.display = 'none'"
                           />
-                          <span v-else class="agent-chip">{{ getAgentShortLabel(block.agentName) }}</span>
                         </template>
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
                           stroke="currentColor"
@@ -829,7 +833,7 @@ import { addDays, todayIso, formatDateLong, formatDateRange, nightsBetween } fro
 import { useTooltip } from '../composables/useTooltip'
 import { transformRoomCharting, transformReservations } from '../composables/useGuestProAdapter'
 import type { GuestProChartingRoom, GuestProReservationItem, GuestProReservationResponse } from '../composables/useGuestProAdapter'
-import { getAgentLogoUrl, getAgentShortLabel } from '../composables/useAgentLogos'
+import { getAgentLogoUrl, getAgentIcon, AGENT_ICON_PATHS } from '../composables/useAgentLogos'
 
 function postFlutterMessage(type: string, payload: unknown) {
   if (typeof window !== 'undefined' && (window as any).Flutter) {
@@ -1838,15 +1842,9 @@ defineExpose({
   background: rgba(255,255,255,0.9);
   flex-shrink: 0;
 }
-.agent-chip {
-  font-size: 9px; font-weight: 700;
-  padding: 1px 4px;
-  border-radius: 3px;
-  background: rgba(255,255,255,0.25);
-  color: #fff;
-  letter-spacing: 0.04em;
+.agent-icon {
+  opacity: 0.9;
   flex-shrink: 0;
-  white-space: nowrap;
 }
 
 /* Tooltip */
