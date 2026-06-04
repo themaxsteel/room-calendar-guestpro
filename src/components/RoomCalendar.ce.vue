@@ -24,9 +24,22 @@
       </Transition>
     </div>
     <Transition name="search-badge-fade">
-      <span v-if="searchQuery" class="rc-search-badge">
-        {{ matchingRoomIds.size }} room{{ matchingRoomIds.size !== 1 ? 's' : '' }} found
-      </span>
+      <div v-if="searchQuery" class="rc-search-nav">
+        <template v-if="searchResults.length > 0">
+          <button class="rc-search-nav-btn" @mousedown.prevent="searchNavPrev" :disabled="searchResults.length <= 1">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          </button>
+          <span class="rc-search-nav-label">{{ searchNavIndex + 1 }} / {{ searchResults.length }}</span>
+          <button class="rc-search-nav-btn" @mousedown.prevent="searchNavNext" :disabled="searchResults.length <= 1">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
+        </template>
+        <span v-else class="rc-search-nav-empty">No results</span>
+      </div>
     </Transition>
     <button class="rc-filter-btn" :class="{ 'has-active': filterSearchActive }" @click="openFilterSearch" title="Filter">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1008,8 +1021,10 @@ function isSearchMatch(block: { guestName: string; folioNumber: string }): boole
 }
 
 function clearSearch() {
-  searchQuery.value  = ''
-  searchActive.value = false
+  searchQuery.value    = ''
+  searchActive.value   = false
+  searchNavIndex.value = 0
+  filterStartDateOverride.value = null
 }
 
 const localSections = ref<RoomSection[]>([...props.sections])
@@ -1045,6 +1060,43 @@ const matchingRoomIds = computed((): Set<string> => {
   }
   return ids
 })
+
+// Sorted list of individual matching reservations for navigator
+const searchResults = computed(() => {
+  const q = searchQuery.value.toLowerCase().trim()
+  if (!q) return []
+  return localReservations.value
+    .filter(r => r.guestName.toLowerCase().includes(q) || r.folioNumber.toLowerCase().includes(q))
+    .sort((a, b) => a.checkIn.localeCompare(b.checkIn))
+})
+
+const searchNavIndex = ref(0)
+
+watch(searchResults, (results) => {
+  searchNavIndex.value = 0
+  if (results.length > 0) searchNavJump(results, 0)
+})
+
+function searchNavJump(results: typeof searchResults.value, idx: number) {
+  const res = results[idx]
+  if (!res) return
+  filterStartDateOverride.value = res.checkIn
+  const payload = { startDate: res.checkIn, endDate: addDays(res.checkIn, effectiveConfig.value.visibleDays - 1) }
+  emit('date-range-changed', payload)
+  postFlutterMessage('date-range-changed', payload)
+}
+
+function searchNavPrev() {
+  if (searchResults.value.length === 0) return
+  searchNavIndex.value = (searchNavIndex.value - 1 + searchResults.value.length) % searchResults.value.length
+  searchNavJump(searchResults.value, searchNavIndex.value)
+}
+
+function searchNavNext() {
+  if (searchResults.value.length === 0) return
+  searchNavIndex.value = (searchNavIndex.value + 1) % searchResults.value.length
+  searchNavJump(searchResults.value, searchNavIndex.value)
+}
 
 function sortBySearch(rooms: Room[]): Room[] {
   if (!searchQuery.value.trim()) return rooms
@@ -2364,11 +2416,43 @@ defineExpose({
   .rc-search-clear:hover { background: #d1d5db; color: #374151; }
 }
 
-.rc-search-badge {
-  font-size: 11px;
-  color: #76b51b;
-  font-weight: 500;
+.rc-search-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 3px 6px;
   white-space: nowrap;
+}
+.rc-search-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px; height: 22px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: #374151;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.1s;
+}
+@media (hover: hover) and (pointer: fine) {
+  .rc-search-nav-btn:hover:not(:disabled) { background: #e5e7eb; }
+}
+.rc-search-nav-btn:disabled { opacity: 0.3; cursor: default; }
+.rc-search-nav-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  min-width: 36px;
+  text-align: center;
+}
+.rc-search-nav-empty {
+  font-size: 11px;
+  color: #9ca3af;
+  padding: 0 2px;
 }
 
 /* Clear button transition */
