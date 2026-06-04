@@ -1708,18 +1708,18 @@ defineExpose({
 }
 .avail-badge {
   display: inline-block;
-  min-width: 22px;
-  padding: 1px 5px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 18px;
+  min-width: 26px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 20px;
   letter-spacing: 0;
 }
-.avail-ok   { background: #dcfce7; color: #166534; }
-.avail-mid  { background: #fef9c3; color: #854d0e; }
-.avail-low  { background: #fee2e2; color: #991b1b; }
-.avail-none { background: #f3f4f6; color: #9ca3af; }
+.avail-ok   { background: #16a34a; color: #fff; }
+.avail-mid  { background: #d97706; color: #fff; }
+.avail-low  { background: #dc2626; color: #fff; }
+.avail-none { background: #9ca3af; color: #fff; }
 .section-dot {
   display: inline-block; width: 7px; height: 7px;
   border-radius: 50%; margin-right: 7px;
