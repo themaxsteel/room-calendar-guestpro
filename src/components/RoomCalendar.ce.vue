@@ -2490,7 +2490,6 @@ defineExpose({
   transition: opacity 0.2s;
 }
 .booking-block.is-search-match {
-  box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgba(99, 102, 241, 0.75);
   z-index: 5;
 }
 .booking-block.is-search-active {
