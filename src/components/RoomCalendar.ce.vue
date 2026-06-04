@@ -1200,7 +1200,7 @@ const isInfiniteLoading         = ref(false)
 
 const effectiveConfig = computed(() => ({
   ...props.config,
-  startDate:   filterStartDateOverride.value  ?? props.config.startDate,
+  startDate:   filterStartDateOverride.value  ?? props.config.startDate ?? todayIso,
   visibleDays: (filterVisibleDaysOverride.value ?? props.config.visibleDays) + infiniteExtraDays.value,
 }))
 
