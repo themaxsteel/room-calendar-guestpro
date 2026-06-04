@@ -18,13 +18,19 @@ export interface GuestProChartingRoom {
   id: string
   name: string
   room_status: string
-  room_type_name: string
   room_status_name: string
-  color: string
-  background_color: string
-  position_calender: number
+  room_type_name: string
+  room_type_id: string
   room_type_position_order: number
   bed_type_name: string | null
+  /** New API field names */
+  room_position_order?: number
+  room_status_color?: string
+  room_status_background_color?: string
+  /** Legacy field names (fallback) */
+  position_calender?: number
+  color?: string
+  background_color?: string
 }
 
 export interface GuestProReservationItem {
@@ -59,23 +65,23 @@ export interface GuestProReservationResponse {
 }
 
 export function transformRoomCharting(rooms: GuestProChartingRoom[]): RoomSection[] {
-  const typeMap = new Map<string, { order: number; roomsRaw: GuestProChartingRoom[] }>()
+  const typeMap = new Map<string, { id: string; label: string; order: number; roomsRaw: GuestProChartingRoom[] }>()
 
   for (const r of rooms) {
-    if (!typeMap.has(r.room_type_name)) {
-      typeMap.set(r.room_type_name, { order: r.room_type_position_order, roomsRaw: [] })
+    if (!typeMap.has(r.room_type_id)) {
+      typeMap.set(r.room_type_id, { id: r.room_type_id, label: r.room_type_name, order: r.room_type_position_order, roomsRaw: [] })
     }
-    typeMap.get(r.room_type_name)!.roomsRaw.push(r)
+    typeMap.get(r.room_type_id)!.roomsRaw.push(r)
   }
 
-  const sorted = Array.from(typeMap.entries()).sort(([, a], [, b]) => a.order - b.order)
+  const sorted = Array.from(typeMap.values()).sort((a, b) => a.order - b.order)
 
-  return sorted.map(([typeName, { roomsRaw }], idx) => ({
-    id: typeName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-    label: typeName.toUpperCase(),
+  return sorted.map(({ id, label, roomsRaw }, idx) => ({
+    id,
+    label: label.toUpperCase(),
     color: SECTION_PALETTE[idx % SECTION_PALETTE.length],
     rooms: roomsRaw
-      .sort((a, b) => a.position_calender - b.position_calender)
+      .sort((a, b) => (a.room_position_order ?? a.position_calender ?? 0) - (b.room_position_order ?? b.position_calender ?? 0))
       .map((r): Room => ({
         id: r.id,
         name: r.name,
