@@ -164,7 +164,7 @@
                   v-for="block in roomBlocks(room.id)"
                   :key="block.id"
                   class="booking-block"
-                  :class="[`status-${block.status.toLowerCase().replace('_', '-')}`, { 'is-dragged': dragState?.blockId === block.id, 'is-search-match': searchQuery && isSearchMatch(block), 'is-search-dim': searchQuery && !isSearchMatch(block) }]"
+                  :class="[`status-${block.status.toLowerCase().replace('_', '-')}`, { 'is-dragged': dragState?.blockId === block.id, 'is-search-match': searchQuery && isSearchMatch(block), 'is-search-dim': searchQuery && !isSearchMatch(block), 'is-search-active': searchQuery && block.id === searchResults[searchNavIndex]?.id }]"
                   :style="{
                     left:   block.left + 'px',
                     width:  block.width + 'px',
@@ -1089,6 +1089,10 @@ function searchNavJump(results: typeof searchResults.value, idx: number) {
   const res = results[idx]
   if (!res) return
   filterStartDateOverride.value = res.checkIn
+  if (wrapRef.value) {
+    wrapRef.value.scrollLeft = 0
+    scrollLeft.value = 0
+  }
   const payload = { startDate: res.checkIn, endDate: addDays(res.checkIn, effectiveConfig.value.visibleDays - 1) }
   emit('date-range-changed', payload)
   postFlutterMessage('date-range-changed', payload)
@@ -2488,6 +2492,11 @@ defineExpose({
 .booking-block.is-search-match {
   box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgba(99, 102, 241, 0.75);
   z-index: 5;
+}
+.booking-block.is-search-active {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px #f59e0b;
+  z-index: 6;
+  filter: brightness(1.08);
 }
 
 /* Calendar Configuration button */
