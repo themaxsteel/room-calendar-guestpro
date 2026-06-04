@@ -1,52 +1,28 @@
 /**
- * Maps GuestPro agent_name values to logo filename slugs.
- * Logo files should be placed in public/agents/<slug>.png
- *
- * To add a new agent: add an entry below and drop the PNG into public/agents/.
+ * Maps GuestPro agent_name values to logo filenames in public/agents/.
+ * To add a new agent: add an entry below and drop the file into public/agents/.
  */
-const AGENT_SLUG_MAP: Record<string, string> = {
+const AGENT_FILE_MAP: Record<string, string> = {
   // OTA international
-  'booking.com':      'booking',
-  'airbnb':           'airbnb',
-  'expedia':          'expedia',
-  'agoda':            'agoda',
-  'hotels.com':       'hotels',
-  'trip.com':         'trip',
-  'tripadvisor':      'tripadvisor',
+  'booking.com':      'booking-com-logo.png',
+  'airbnb':           'airbnb-logo.jpeg',
+  'expedia':          'expedia-logo.png',
+  'agoda':            'agoda-logo.png',
+  'trip.com':         'trip-logo.webp',
+  'tripadvisor':      'tripadvisor-logo.png',
 
   // OTA Indonesia
-  'traveloka':        'traveloka',
-  'tiket.com':        'tiket',
-  'pegipegi':         'pegipegi',
-  'nusatrip':         'nusatrip',
-  'airy':             'airy',
-  'mister aladin':    'misteraladin',
-
-  // Direct channels
-  'direct':           'direct',
-  'website':          'website',
-  'walk_in':          'walk-in',
-  'walk in':          'walk-in',
-  'phone':            'phone',
-  'email':            'email',
-  'whatsapp':         'whatsapp',
-
-  // Corporate / other
-  'corporate':        'corporate',
-  'travel agent':     'travel-agent',
-  'ota':              'ota',
-}
-
-export function getAgentLogoSlug(agentName: string): string | null {
-  if (!agentName) return null
-  return AGENT_SLUG_MAP[agentName.toLowerCase().trim()] ?? null
+  'traveloka':        'traveloka-logo.webp',
+  'tiket.com':        'tiket-logo.webp',
+  'pegipegi':         'pegipegi-logo.jpg',
 }
 
 export function getAgentLogoUrl(agentName: string, baseUrl: string): string | null {
-  const slug = getAgentLogoSlug(agentName)
-  if (!slug) return null
+  if (!agentName) return null
+  const file = AGENT_FILE_MAP[agentName.toLowerCase().trim()]
+  if (!file) return null
   const base = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'
-  return `${base}${slug}.png`
+  return `${base}${file}`
 }
 
 /** Short display label for text fallback chip */
