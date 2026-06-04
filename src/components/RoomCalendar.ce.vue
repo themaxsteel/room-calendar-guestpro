@@ -1100,9 +1100,7 @@ function searchNavNext() {
 
 function sortBySearch(rooms: Room[]): Room[] {
   if (!searchQuery.value.trim()) return rooms
-  const matched = rooms.filter(r => matchingRoomIds.value.has(r.id))
-  const rest    = rooms.filter(r => !matchingRoomIds.value.has(r.id))
-  return [...matched, ...rest]
+  return rooms.filter(r => matchingRoomIds.value.has(r.id))
 }
 
 const displaySections = computed((): RoomSection[] => {
