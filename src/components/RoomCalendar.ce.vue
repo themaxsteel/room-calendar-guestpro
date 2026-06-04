@@ -1107,11 +1107,8 @@ const sectionAvailability = computed((): Map<string, Map<string, number>> => {
   return result
 })
 
-function availClass(available: number, total: number): string {
-  if (available === 0) return 'avail-none'
-  if (available / total <= 0.3) return 'avail-low'
-  if (available / total <= 0.6) return 'avail-mid'
-  return 'avail-ok'
+function availClass(available: number, _total: number): string {
+  return available > 0 ? 'avail-ok' : 'avail-none'
 }
 
 // ── Row drag-to-reorder (normal mode only) ────────────────────────────────────
@@ -1732,9 +1729,7 @@ defineExpose({
   line-height: 20px;
 }
 .avail-ok   { color: #16a34a; }
-.avail-mid  { color: #d97706; }
-.avail-low  { color: #dc2626; }
-.avail-none { color: #9ca3af; }
+.avail-none { color: #dc2626; }
 .section-dot {
   display: inline-block; width: 7px; height: 7px;
   border-radius: 50%; margin-right: 7px;
