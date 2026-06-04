@@ -1010,9 +1010,17 @@ function onRoomColResizeStart(e: PointerEvent) {
 }
 
 // ── Search ────────────────────────────────────────────────────────────────────
-const searchQuery    = ref('')
-const searchActive   = ref(false)
-const searchInputRef = ref<HTMLInputElement | null>(null)
+const searchQuery        = ref('')
+const searchActive       = ref(false)
+const searchInputRef     = ref<HTMLInputElement | null>(null)
+const preSearchStartDate = ref<string | null>(null)
+
+// Capture host startDate the moment user starts typing, before any jump
+watch(searchQuery, (q, prev) => {
+  if (q && !prev) {
+    preSearchStartDate.value = props.config.startDate ?? todayIso
+  }
+})
 
 function isSearchMatch(block: { guestName: string; folioNumber: string }): boolean {
   const q = searchQuery.value.toLowerCase().trim()
@@ -1024,7 +1032,8 @@ function clearSearch() {
   searchQuery.value             = ''
   searchActive.value            = false
   searchNavIndex.value          = 0
-  filterStartDateOverride.value = null
+  filterStartDateOverride.value = preSearchStartDate.value
+  preSearchStartDate.value      = null
 }
 
 const localSections = ref<RoomSection[]>([...props.sections])
