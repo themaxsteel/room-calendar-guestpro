@@ -94,14 +94,13 @@
         <template v-for="section in displaySections" :key="section.id">
           <!-- Section header -->
           <tr v-if="filterCalendarType === 'by-room-type'" class="section-row" @click="toggleSection(section.id)">
-            <td class="section-first" :style="{ boxShadow: 'inset 3px 0 0 ' + section.color }">
+            <td class="section-first" style="box-shadow: inset 3px 0 0 #9ca3af">
+              {{ section.label }} ({{ section.rooms.length }})
               <span class="section-chevron" :class="{ 'is-open': expandedSections[section.id] }">
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                   <path d="M2 3.5 L5 6.5 L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
               </span>
-              <span class="section-dot" :style="{ background: section.color }"></span>
-              {{ section.label }} ({{ section.rooms.length }})
             </td>
             <td v-for="day in visibleDays" :key="day.iso" class="section-rest">
               <span
@@ -1761,6 +1760,9 @@ defineExpose({
   border-right: 1px solid #e5e7eb !important;
   vertical-align: middle !important;
   overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
 }
 .section-rest {
   background: #f5f5f5 !important;
@@ -1783,8 +1785,8 @@ defineExpose({
 }
 .section-chevron {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 14px; height: 14px; margin-right: 5px;
-  color: #d1d5db; vertical-align: middle;
+  width: 14px; height: 14px; flex-shrink: 0;
+  color: #d1d5db;
   transition: transform 0.18s cubic-bezier(0.23, 1, 0.32, 1);
   transform: rotate(-90deg);
 }
