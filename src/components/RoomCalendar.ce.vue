@@ -42,6 +42,24 @@
         <span v-else class="rc-search-nav-empty">No results</span>
       </div>
     </Transition>
+    <Transition name="loadmore-fade">
+      <button
+        v-if="atScrollEnd"
+        type="button"
+        class="rc-loadmore-btn"
+        :disabled="isInfiniteLoading"
+        @click="loadMoreDays"
+        title="Load more days"
+      >
+        <svg v-if="isInfiniteLoading" class="rc-loadmore-spinner" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+        </svg>
+        <svg v-else width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M13 5l7 7-7 7M5 5l7 7-7 7"/>
+        </svg>
+        <span class="rc-loadmore-text">{{ isInfiniteLoading ? 'Loading…' : 'Load More' }}</span>
+      </button>
+    </Transition>
     <button class="rc-filter-btn" :class="{ 'has-active': filterSearchActive }" @click="openFilterSearch" title="Filter">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
@@ -240,15 +258,6 @@
     </div><!-- /.cal-table-positioner -->
   </div>
 
-  <!-- Infinite scroll loading indicator -->
-  <Transition name="inf-loader">
-    <div v-if="isInfiniteLoading" class="rc-inf-loader">
-      <svg class="rc-inf-spinner" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-      </svg>
-      <span>Loading more days…</span>
-    </div>
-  </Transition>
 
   <!-- New reservation drag tooltip (white) -->
   <div v-if="newResPreview && newResDrag?.isActive" class="rc-newres-tooltip" :style="newResTooltipStyle">
@@ -1255,6 +1264,8 @@ const filterVisibleDaysOverride = ref<number | null>(null)
 // Extra days appended by infinite scroll (resets when filter changes)
 const infiniteExtraDays         = ref(0)
 const isInfiniteLoading         = ref(false)
+// True when the grid is scrolled to (or near) its right edge — gates the Load More button
+const atScrollEnd               = ref(false)
 
 const effectiveConfig = computed(() => ({
   ...props.config,
@@ -1287,21 +1298,28 @@ function onScroll(e: Event) {
     const maxOffset  = Math.max(0, blockW - 100 - 8)
     inner.style.transform = `translateX(${Math.min(offset, maxOffset)}px)`
   }
-  // Infinite scroll: show loader immediately, append 30 days after 1 s
-  if (!isInfiniteLoading.value && el.scrollLeft + el.clientWidth >= el.scrollWidth - DAY_COL_W.value * 5) {
-    isInfiniteLoading.value = true
-    if (infiniteScrollTimer) clearTimeout(infiniteScrollTimer)
-    const snapStartDate = effectiveConfig.value.startDate
-    const snapPrevTotal = (filterVisibleDaysOverride.value ?? props.config.visibleDays) + infiniteExtraDays.value
-    infiniteScrollTimer = setTimeout(() => {
-      infiniteExtraDays.value += 30
-      const chunkStart = addDays(snapStartDate, snapPrevTotal)
-      const chunkEnd   = addDays(snapStartDate, snapPrevTotal + 29)
-      emit('infinite-scroll-load', { startDate: chunkStart, endDate: chunkEnd })
-      isInfiniteLoading.value = false
-      infiniteScrollTimer = null
-    }, 1000)
-  }
+  // Reveal the Load More button only once the user has scrolled to the right edge
+  atScrollEnd.value = el.scrollLeft + el.clientWidth >= el.scrollWidth - DAY_COL_W.value
+}
+
+// Load More: manually append 30 days when the user clicks the sticky button.
+// Shows the spinner immediately, then appends after 1 s (kept from prior debounce).
+function loadMoreDays() {
+  if (isInfiniteLoading.value) return
+  isInfiniteLoading.value = true
+  if (infiniteScrollTimer) clearTimeout(infiniteScrollTimer)
+  const snapStartDate = effectiveConfig.value.startDate
+  const snapPrevTotal = (filterVisibleDaysOverride.value ?? props.config.visibleDays) + infiniteExtraDays.value
+  infiniteScrollTimer = setTimeout(() => {
+    infiniteExtraDays.value += 30
+    const chunkStart = addDays(snapStartDate, snapPrevTotal)
+    const chunkEnd   = addDays(snapStartDate, snapPrevTotal + 29)
+    emit('infinite-scroll-load', { startDate: chunkStart, endDate: chunkEnd })
+    isInfiniteLoading.value = false
+    infiniteScrollTimer = null
+    // New columns appended → grid is no longer at the right edge, hide the button
+    atScrollEnd.value = false
+  }, 1000)
 }
 
 // ── New reservation drag-to-create ──────────────────────────────────────────
@@ -1695,6 +1713,33 @@ defineExpose({
   display: inline-block;
   min-width: 100%;
 }
+
+/* Load More — toolbar button shown only when scrolled to the right edge */
+.rc-loadmore-btn {
+  display: flex; align-items: center; gap: 7px;
+  margin-left: auto;
+  padding: 8px 14px;
+  background: #eef5e1;
+  border: 1.5px solid #cfe3a8;
+  border-radius: 9px;
+  font-size: 13px; font-weight: 600; color: #4f7a13;
+  cursor: pointer; flex-shrink: 0; font-family: inherit;
+  white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s,
+              transform 0.1s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.rc-loadmore-btn:disabled { cursor: default; opacity: 0.85; }
+@media (hover: hover) and (pointer: fine) {
+  .rc-loadmore-btn:not(:disabled):hover { background: #e4efce; border-color: #bcd98c; }
+}
+.rc-loadmore-btn:not(:disabled):active { transform: scale(0.97); }
+.rc-loadmore-spinner { animation: inf-spin 0.7s linear infinite; }
+
+/* Load More button enter/exit */
+.loadmore-fade-enter-active { transition: opacity 0.16s ease-out, transform 0.16s cubic-bezier(0.23, 1, 0.32, 1); }
+.loadmore-fade-leave-active { transition: opacity 0.12s ease-in, transform 0.12s ease-in; }
+.loadmore-fade-enter-from   { opacity: 0; transform: translateX(6px) scale(0.95); }
+.loadmore-fade-leave-to     { opacity: 0; transform: translateX(4px) scale(0.97); }
 
 .room-col-resize-bar {
   position: absolute;
@@ -2430,65 +2475,11 @@ defineExpose({
   height: 100%;
 }
 
-/* Infinite scroll loader */
-.rc-inf-loader {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(8px);
-  border-top: 2px solid #76b51b;
-  font-size: 13px;
-  font-weight: 600;
-  color: #3a5c0d;
-  pointer-events: none;
-  z-index: 50;
-  overflow: hidden;
-}
-.rc-inf-loader::before {
-  content: '';
-  position: absolute;
-  top: -2px;
-  left: 0;
-  width: 40%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, #a3d65a, #76b51b, transparent);
-  animation: inf-sweep 1.1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-.rc-inf-spinner {
-  animation: inf-spin 0.75s linear infinite;
-  color: #76b51b;
-  flex-shrink: 0;
-}
+/* Load More spinner rotation */
 @keyframes inf-spin {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
-@keyframes inf-sweep {
-  from { transform: translateX(-100%); }
-  to   { transform: translateX(300%); }
-}
-.inf-loader-enter-active {
-  transition: transform 0.22s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.22s ease-out;
-}
-.inf-loader-leave-active {
-  transition: transform 0.15s ease-in, opacity 0.15s ease-in;
-}
-.inf-loader-enter-from,
-.inf-loader-leave-to {
-  transform: translateY(100%);
-  opacity: 0;
-}
-.inf-loader-enter-active { transition: opacity 0.15s ease-out, transform 0.15s cubic-bezier(0.23,1,0.32,1); }
-.inf-loader-leave-active { transition: opacity 0.15s ease-in, transform 0.12s ease-in; }
-.inf-loader-enter-from   { opacity: 0; transform: translateY(6px) scale(0.95); }
-.inf-loader-leave-to     { opacity: 0; transform: translateY(4px) scale(0.97); }
 
 /* Search toolbar */
 .rc-search-bar {
