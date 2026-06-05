@@ -380,7 +380,7 @@ async function moveReservation(payload) {
       cal.updateReservations(hotReload)
     }
   } catch (err) {
-    cal.revertLastMove()
+    cal.revertReservation(payload.id, payload.from_room_id)
     showToast('error', 'Move failed — network error')
   } finally {
     loader.classList.remove('show')
@@ -404,11 +404,6 @@ async function fetchCalendarConfig() {
     const data = await res.json()
     const cfg = data?.data ?? data
     cal.setCalendarConfiguration(cfg)
-    const baseDate = cfg.use_app_date === 1 ? cfg.app_date : todayIso()
-    const startDate = addDays(baseDate, -1)
-    $('date-from').value = startDate
-    lsSet({ dateFrom: startDate })
-    cal.config = { ...cal.config, startDate }
   } catch {}
 }
 
