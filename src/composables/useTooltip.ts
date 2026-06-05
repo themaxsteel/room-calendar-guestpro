@@ -18,7 +18,6 @@ export function useTooltip() {
     return {
       left:      flipX ? x.value - 16 - TOOLTIP_WIDTH + 'px' : x.value + 16 + 'px',
       top:       y.value + 'px',
-      transform: 'translateY(-50%)',
     }
   })
 

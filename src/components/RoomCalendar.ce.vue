@@ -171,10 +171,10 @@
                     top:    block.totalRows > 1 ? `calc(${block.row / block.totalRows * 100}% + 2px)`                         : '0',
                     bottom: block.totalRows > 1 ? `calc(${(block.totalRows - block.row - 1) / block.totalRows * 100}% + 2px)` : '0',
                   }"
-                  @pointerdown.stop.prevent="onBlockPointerdown($event, block, room)"
-                  @mouseenter="showTooltip($event, block, room)"
-                  @mousemove="moveTooltip"
-                  @mouseleave="hideTooltip"
+                  @pointerdown.stop.prevent="block.status !== 'ROOM_MAINTENANCE' && onBlockPointerdown($event, block, room)"
+                  @mouseenter="block.status !== 'ROOM_MAINTENANCE' && showTooltip($event, block, room)"
+                  @mousemove="block.status !== 'ROOM_MAINTENANCE' && moveTooltip($event)"
+                  @mouseleave="block.status !== 'ROOM_MAINTENANCE' && hideTooltip()"
                 >
                   <div class="booking-inner">
                     <!-- Room Maintenance -->
@@ -436,50 +436,57 @@
   </Transition>
 
   <!-- Tooltip -->
-  <div v-if="tooltipTarget && !dragState && filterShowReservationDetail" class="rc-tooltip" :style="tooltipStyle">
-    <div class="tt-guest">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <circle cx="12" cy="8" r="4"/>
-        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-      </svg>
-      {{ tooltipTarget.block.guestName }}
-    </div>
-    <div class="tt-divider"></div>
-    <div class="tt-row">
-      <span class="tt-label">Room</span>
-      <span class="tt-val">{{ tooltipTarget.room.name }}</span>
-    </div>
-    <div class="tt-row">
-      <span class="tt-label">Type</span>
-      <span class="tt-val">{{ tooltipTarget.room.type }}</span>
-    </div>
-    <div class="tt-row">
-      <span class="tt-label">Folio</span>
-      <span class="tt-val">#{{ tooltipTarget.block.folioNumber }}</span>
-    </div>
-    <div class="tt-divider"></div>
-    <div class="tt-dates">
-      <span>{{ formatDateLong(tooltipTarget.block.checkIn) }}</span>
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-      </svg>
-      <span>{{ formatDateLong(tooltipTarget.block.checkOut) }}</span>
-    </div>
-    <div class="tt-nights">{{ nightsBetween(tooltipTarget.block.checkIn, tooltipTarget.block.checkOut) }} nights</div>
-    <div class="tt-divider"></div>
-    <div class="tt-payment">
-      <div class="tt-bar-track">
-        <div
-          class="tt-bar-fill"
-          :class="{ full: tooltipTarget.block.paidPercent === 100 }"
-          :style="{ width: tooltipTarget.block.paidPercent + '%' }"
-        ></div>
+  <Transition name="tt">
+    <div v-if="tooltipTarget && !dragState && filterShowReservationDetail" class="rc-tooltip" :class="statusClass(tooltipTarget.block.status)" :style="tooltipStyle">
+      <div class="tt-header">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <circle cx="12" cy="8" r="4"/>
+          <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+        </svg>
+        <span class="tt-guest">{{ tooltipTarget.block.guestName }}</span>
       </div>
-      <span class="tt-paid-txt" :class="{ full: tooltipTarget.block.paidPercent === 100 }">
-        Paid {{ tooltipTarget.block.paidPercent }}%
-      </span>
+      <div class="tt-body">
+        <div class="tt-row">
+          <svg class="tt-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+          <span class="tt-val">Room {{ tooltipTarget.room.name }}</span>
+        </div>
+        <div class="tt-row">
+          <svg class="tt-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span class="tt-val">Folio #{{ tooltipTarget.block.folioNumber }}</span>
+        </div>
+        <div v-if="tooltipTarget.block.agentName" class="tt-row">
+          <svg class="tt-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span class="tt-val">{{ tooltipTarget.block.agentName }}</span>
+        </div>
+        <div class="tt-divider"></div>
+        <div class="tt-stay">
+          <span class="tt-stay-label tt-l">Check-in</span>
+          <span class="tt-stay-nights">{{ nightsBetween(tooltipTarget.block.checkIn, tooltipTarget.block.checkOut) }} {{ nightsBetween(tooltipTarget.block.checkIn, tooltipTarget.block.checkOut) === 1 ? 'night' : 'nights' }}</span>
+          <span class="tt-stay-label tt-r">Check-out</span>
+          <span class="tt-stay-date tt-l">{{ formatDateShort(tooltipTarget.block.checkIn) }}</span>
+          <span class="tt-stay-conn">
+            <i class="tt-stay-dot"></i>
+            <i class="tt-stay-track"></i>
+            <i class="tt-stay-arrow"></i>
+          </span>
+          <span class="tt-stay-date tt-r">{{ formatDateShort(tooltipTarget.block.checkOut) }}</span>
+        </div>
+        <div class="tt-divider"></div>
+        <div class="tt-payment">
+          <div class="tt-bar-track">
+            <div
+              class="tt-bar-fill"
+              :class="{ full: tooltipTarget.block.paidPercent === 100 }"
+              :style="{ width: tooltipTarget.block.paidPercent + '%' }"
+            ></div>
+          </div>
+          <span class="tt-paid-txt" :class="{ full: tooltipTarget.block.paidPercent === 100 }">
+            Paid {{ tooltipTarget.block.paidPercent }}%
+          </span>
+        </div>
+      </div>
     </div>
-  </div>
+  </Transition>
   <!-- Filter Search Modal -->
   <Transition name="cfg-modal">
     <div v-if="filterSearchOpen" class="rc-cfg-overlay" @pointerdown.self="filterSearchOpen = false">
@@ -1174,6 +1181,26 @@ function onRoomCellPointerdown(event: PointerEvent, roomId: string, roomIdx: num
 function formatBalance(amount: number): string {
   if (amount === 0) return '0'
   return (amount > 0 ? '+' : '') + amount.toLocaleString('en-US')
+}
+
+const _MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+function formatDateShort(iso: string): string {
+  const d = new Date(iso)
+  return `${d.getDate()} ${_MONTHS_SHORT[d.getMonth()]}`
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  'CHECK-IN': 'Checked In',
+  'CHECK-OUT': 'Checked Out',
+  'DEFINITE': 'Confirmed',
+  'BOOKED': 'Booked',
+  'ROOM_MAINTENANCE': 'Maintenance',
+}
+function statusLabel(status: string): string {
+  return STATUS_LABELS[status] ?? status
+}
+function statusClass(status: string): string {
+  return 'tt-st-' + status.toLowerCase().replace(/_/g, '-')
 }
 
 const localReservations = ref<Reservation[]>([...props.reservations])
@@ -1878,44 +1905,113 @@ defineExpose({
 .rc-tooltip {
   position: fixed;
   z-index: 9999;
-  min-width: 200px;
-  max-width: 224px;
+  min-width: 210px;
+  max-width: 232px;
   background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 9px;
-  padding: 11px 13px;
+  border: 1px solid #ececf0;
+  border-radius: 11px;
+  padding: 0;
+  overflow: hidden;
   pointer-events: none;
-  box-shadow: 0 12px 40px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.06);
-  font-size: 11px;
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.14), 0 2px 8px rgba(15, 23, 42, 0.06);
+  font-size: 12px;
   color: #555;
   line-height: 1.45;
+  transform: translateY(-50%);
+  transform-origin: left center;
+  /* default accent — overridden per status below */
+  --tt-accent: #1a1a1a;
 }
-.tt-guest {
+
+/* Status accent colors (mirror booking-block status colors) */
+.rc-tooltip.tt-st-definite         { --tt-accent: var(--rc-bg-reservation, #d97706); }
+.rc-tooltip.tt-st-check-in         { --tt-accent: var(--rc-bg-inhouse, #16a34a); }
+.rc-tooltip.tt-st-check-out        { --tt-accent: var(--rc-bg-checkout, #dc2626); }
+.rc-tooltip.tt-st-booked           { --tt-accent: var(--rc-bg-tentative, #475569); }
+.rc-tooltip.tt-st-room-maintenance { --tt-accent: var(--rc-bg-maintenance, #475569); }
+
+/* Colored header band */
+.tt-header {
   display: flex; align-items: center; gap: 7px;
-  font-size: 13px; font-weight: 700; color: #1a1a1a;
-  letter-spacing: 0.01em;
+  padding: 9px 13px;
+  background: var(--tt-accent);
+  color: #fff;
 }
-.tt-divider { height: 1px; background: #ebebeb; margin: 8px 0; }
-.tt-row { display: flex; justify-content: space-between; align-items: center; margin: 3px 0; }
-.tt-label {
-  font-size: 9px; font-weight: 600; color: #bbb;
-  text-transform: uppercase; letter-spacing: 0.06em;
+.tt-header svg { opacity: 0.85; flex-shrink: 0; }
+.tt-guest {
+  flex: 1; min-width: 0;
+  font-size: 14px; font-weight: 700; letter-spacing: 0.01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.tt-val { color: #333; font-size: 11px; }
-.tt-dates {
-  display: flex; align-items: center; gap: 5px;
-  color: #333; font-size: 11px; margin: 3px 0 1px;
+.tt-status {
+  flex-shrink: 0;
+  font-size: 9.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 2px 6px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
 }
-.tt-nights { color: #bbb; font-size: 10px; margin-bottom: 1px; }
-.tt-payment { display: flex; align-items: center; gap: 8px; }
+
+.tt-body { padding: 10px 13px 11px; }
+.tt-divider { height: 1px; background: #efeff2; margin: 9px 0; }
+.tt-row { display: flex; align-items: center; gap: 7px; margin: 5px 0; }
+.tt-icon { color: #9ca3af; flex-shrink: 0; }
+.tt-val {
+  color: #2a2a32; font-size: 12px; font-weight: 500;
+  min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Stay block — two labeled columns with a centered connector + nights */
+.tt-stay {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  row-gap: 4px; column-gap: 11px;
+}
+.tt-stay-label {
+  font-size: 10px; font-weight: 500; color: #9ca3af;
+}
+.tt-stay-nights {
+  font-size: 9.5px; font-weight: 700; color: var(--tt-accent);
+  text-align: center; white-space: nowrap;
+}
+.tt-l { text-align: left; }
+.tt-r { text-align: right; }
+.tt-stay-date {
+  font-size: 12.5px; font-weight: 700; color: #1a1a1a;
+  white-space: nowrap;
+}
+.tt-stay-conn {
+  display: flex; align-items: center; min-width: 30px;
+}
+.tt-stay-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--tt-accent); flex-shrink: 0;
+}
+.tt-stay-track {
+  flex: 1; height: 2px; border-radius: 1px;
+  background: var(--tt-accent); opacity: 0.32;
+}
+.tt-stay-arrow {
+  width: 0; height: 0; flex-shrink: 0;
+  border-top: 3px solid transparent;
+  border-bottom: 3px solid transparent;
+  border-left: 5px solid var(--tt-accent);
+}
+
+.tt-payment { display: flex; align-items: center; gap: 9px; }
 .tt-bar-track {
-  flex: 1; height: 4px; background: #e5e7eb;
-  border-radius: 2px; overflow: hidden;
+  flex: 1; height: 5px; background: #ededf0;
+  border-radius: 3px; overflow: hidden;
 }
-.tt-bar-fill { height: 100%; background: #f59e0b; border-radius: 2px; }
+.tt-bar-fill { height: 100%; background: #f59e0b; border-radius: 3px; transition: width 200ms cubic-bezier(0.23, 1, 0.32, 1); }
 .tt-bar-fill.full { background: #16a34a; }
-.tt-paid-txt { font-size: 10px; color: #f59e0b; white-space: nowrap; }
+.tt-paid-txt { font-size: 11px; font-weight: 600; color: #f59e0b; white-space: nowrap; }
 .tt-paid-txt.full { color: #16a34a; }
+
+/* Enter/exit animation — fade + slight scale */
+.tt-enter-active { transition: opacity 150ms cubic-bezier(0.23, 1, 0.32, 1), transform 150ms cubic-bezier(0.23, 1, 0.32, 1); }
+.tt-leave-active { transition: opacity 100ms ease-in, transform 100ms ease-in; }
+.tt-enter-from, .tt-leave-to { opacity: 0; transform: translateY(-50%) scale(0.96); }
 
 
 /* New reservation preview block */
