@@ -910,18 +910,49 @@ const calConfig = reactive({
   calender_block_start_midnight:   1 as 0 | 1,
 })
 
+// Applied (committed) colors — the calendar reads from these, NOT the draft
+// `calConfig`. Editing swatches in the popup only mutates the draft; colors are
+// committed here on Save (or via setCalendarConfiguration).
+const COLOR_KEYS = [
+  'background_color_reservation',
+  'background_color_tentative',
+  'background_color_inhouse',
+  'background_color_checkout',
+  'background_color_room_maintenance',
+  'foreground_color_reservation',
+  'foreground_color_tentative',
+  'foreground_color_inhouse',
+  'foreground_color_checkout',
+  'foreground_color_room_maintenance',
+] as const
+const appliedColors = reactive({
+  background_color_reservation:      calConfig.background_color_reservation,
+  background_color_tentative:        calConfig.background_color_tentative,
+  background_color_inhouse:          calConfig.background_color_inhouse,
+  background_color_checkout:         calConfig.background_color_checkout,
+  background_color_room_maintenance: calConfig.background_color_room_maintenance,
+  foreground_color_reservation:      calConfig.foreground_color_reservation,
+  foreground_color_tentative:        calConfig.foreground_color_tentative,
+  foreground_color_inhouse:          calConfig.foreground_color_inhouse,
+  foreground_color_checkout:         calConfig.foreground_color_checkout,
+  foreground_color_room_maintenance: calConfig.foreground_color_room_maintenance,
+})
+function commitColors() {
+  for (const key of COLOR_KEYS) appliedColors[key] = calConfig[key]
+}
+
 const calConfigStyle = computed(() => ({
   '--rc-room-col-w': ROOM_COL_W.value + 'px',
-  '--rc-bg-reservation': calConfig.background_color_reservation,
-  '--rc-bg-tentative':   calConfig.background_color_tentative,
-  '--rc-bg-inhouse':     calConfig.background_color_inhouse,
-  '--rc-bg-checkout':    calConfig.background_color_checkout,
-  '--rc-bg-maintenance': calConfig.background_color_room_maintenance,
-  '--rc-fg-reservation': calConfig.foreground_color_reservation,
-  '--rc-fg-tentative':   calConfig.foreground_color_tentative,
-  '--rc-fg-inhouse':     calConfig.foreground_color_inhouse,
-  '--rc-fg-checkout':    calConfig.foreground_color_checkout,
-  '--rc-fg-maintenance': calConfig.foreground_color_room_maintenance,
+  '--rc-bg-reservation': appliedColors.background_color_reservation,
+  '--rc-bg-tentative':   appliedColors.background_color_tentative,
+  '--rc-bg-inhouse':     appliedColors.background_color_inhouse,
+  '--rc-bg-checkout':    appliedColors.background_color_checkout,
+  '--rc-bg-maintenance': appliedColors.background_color_room_maintenance,
+  '--rc-fg-reservation': appliedColors.foreground_color_reservation,
+  '--rc-fg-tentative':   appliedColors.foreground_color_tentative,
+  '--rc-fg-inhouse':     appliedColors.foreground_color_inhouse,
+  '--rc-fg-checkout':    appliedColors.foreground_color_checkout,
+  '--rc-fg-maintenance': appliedColors.foreground_color_room_maintenance,
 }))
 
 function toggleLabel(part: 'guest_name' | 'folio', event: Event) {
@@ -946,6 +977,9 @@ function openCalConfig() {
   calConfig.calender_show_hover_tooltips = filterShowReservationDetail.value ? 1 : 0
   calConfig.calender_block_start_midnight = filterBlockStartMidnight.value ? 1 : 0
   calConfig.calender_room_column         = ROOM_COL_W.value
+  // Reset the draft swatches to the currently-applied colors so cancelling
+  // discards any prior unsaved edits.
+  for (const key of COLOR_KEYS) calConfig[key] = appliedColors[key]
   calConfigOpen.value = true
 }
 
@@ -963,6 +997,7 @@ function applyCalConfig() {
 
 function saveCalConfig() {
   applyCalConfig()
+  commitColors()
   const cfg = { ...calConfig }
   emit('calendar-config-saved', cfg)
   postFlutterMessage('calendar-config-saved', cfg)
@@ -1602,6 +1637,7 @@ defineExpose({
     if (cfg.foreground_color_checkout       !== undefined) calConfig.foreground_color_checkout       = cfg.foreground_color_checkout
     if (cfg.foreground_color_room_maintenance !== undefined) calConfig.foreground_color_room_maintenance = cfg.foreground_color_room_maintenance
     applyCalConfig()
+    commitColors()
   },
   setFilter(filter: CalendarFilter) {
     if (filter.roomColWidth          !== undefined) filterRoomColW.value             = filter.roomColWidth
@@ -1887,8 +1923,8 @@ defineExpose({
 .b-left-col > svg { opacity: 0.75; }
 .b-texts { display: flex; flex-direction: column; justify-content: center; gap: 1px; }
 .b-name  { font-size: 12px; font-weight: 600; color: var(--block-fg, #fff); }
-.b-folio { font-size: 11px;  color: #ffffff; opacity: 1; }
-.b-paid  { font-size: 11px;  color: #ffffff; opacity: 1; }
+.b-folio { font-size: 11px;  color: var(--block-fg, #fff); opacity: 1; }
+.b-paid  { font-size: 11px;  color: var(--block-fg, #fff); opacity: 1; }
 .agent-logo {
   width: 18px; height: 18px;
   object-fit: contain;
@@ -1934,7 +1970,7 @@ defineExpose({
 .tt-header {
   display: flex; align-items: center; gap: 7px;
   padding: 9px 13px;
-  background: var(--tt-accent);
+  background: #76b51b;
   color: #fff;
 }
 .tt-header svg { opacity: 0.85; flex-shrink: 0; }
@@ -1971,7 +2007,7 @@ defineExpose({
   font-size: 10px; font-weight: 500; color: #9ca3af;
 }
 .tt-stay-nights {
-  font-size: 9.5px; font-weight: 700; color: var(--tt-accent);
+  font-size: 11.5px; font-weight: 700; color: #76b51b;
   text-align: center; white-space: nowrap;
 }
 .tt-l { text-align: left; }
@@ -1985,17 +2021,17 @@ defineExpose({
 }
 .tt-stay-dot {
   width: 5px; height: 5px; border-radius: 50%;
-  background: var(--tt-accent); flex-shrink: 0;
+  background: #76b51b; flex-shrink: 0;
 }
 .tt-stay-track {
   flex: 1; height: 2px; border-radius: 1px;
-  background: var(--tt-accent); opacity: 0.32;
+  background: #76b51b; opacity: 0.32;
 }
 .tt-stay-arrow {
   width: 0; height: 0; flex-shrink: 0;
   border-top: 3px solid transparent;
   border-bottom: 3px solid transparent;
-  border-left: 5px solid var(--tt-accent);
+  border-left: 5px solid #76b51b;
 }
 
 .tt-payment { display: flex; align-items: center; gap: 9px; }
