@@ -28,19 +28,24 @@ export default defineConfig({
       insertTypesEntry: true,
     }),
   ],
+  // Inline process.env.NODE_ENV so the bundle has no dependency on `process`
+  // (which may be undefined in non-webpack browser environments).
+  define: {
+    'process.env.NODE_ENV': JSON.stringify('production'),
+  },
   build: {
+    // Target ES2019 (Chrome 73+, Node 12+) — ensures async/await is transpiled
+    // for compatibility with Vue CLI / webpack 4 projects (Vue 2 apps).
+    target: 'es2019',
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),
       name: 'RoomCalendar',
       fileName: 'room-calendar',
     },
     rollupOptions: {
-      external: ['vue'],
-      output: {
-        globals: {
-          vue: 'Vue',
-        },
-      },
+      // Vue must NOT be external — this is a self-contained Web Component.
+      // Bundling Vue 3 runtime in ensures the custom element works regardless
+      // of the host app's framework (Vue 2, React, vanilla JS, etc.).
     },
     cssCodeSplit: false,
   },

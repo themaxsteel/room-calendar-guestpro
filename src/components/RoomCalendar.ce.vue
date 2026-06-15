@@ -215,12 +215,9 @@
                     </template>
                     <!-- Regular reservation -->
                     <template v-else>
-                      <div class="b-left-col">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                          stroke="currentColor"
-                          stroke-width="2.5">
-                          <circle cx="12" cy="8" r="4"/>
-                          <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                      <div class="b-left-col" :style="block.agentColor ? { color: block.agentColor } : undefined">
+                        <svg width="13" height="13" :viewBox="agentIcon(block.iconCode).vb" fill="currentColor">
+                          <path :d="agentIcon(block.iconCode).d"/>
                         </svg>
                       </div>
                       <div class="b-texts">
@@ -492,6 +489,19 @@
           <span class="tt-paid-txt" :class="{ full: tooltipTarget.block.paidPercent === 100 }">
             Paid {{ tooltipTarget.block.paidPercent }}%
           </span>
+        </div>
+        <div v-if="tooltipTarget.block.totalBill != null" class="tt-divider"></div>
+        <div v-if="tooltipTarget.block.totalBill != null" class="tt-amounts">
+          <div class="tt-amount-row">
+            <span class="tt-amount-label">Total Bill</span>
+            <span class="tt-amount-val">{{ formatMoney(tooltipTarget.block.totalBill) }}</span>
+          </div>
+          <div class="tt-amount-row">
+            <span class="tt-amount-label">Outstanding</span>
+            <span class="tt-amount-val" :class="{ 'tt-amount-due': (tooltipTarget.block.outstanding ?? 0) > 0 }">
+              {{ formatMoney(tooltipTarget.block.outstanding ?? 0) }}
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -834,6 +844,28 @@
     </div>
   </Transition>
 
+  <!-- Transient toast (e.g. blocked move) -->
+  <Transition name="rc-toast-fade">
+    <div v-if="toastMessage" class="rc-toast" role="status">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span>{{ toastMessage }}</span>
+    </div>
+  </Transition>
+
+  <!-- Loading lock — blocks all calendar interaction while data updates -->
+  <Transition name="rc-loading-fade">
+    <div v-if="isCalendarLoading" class="rc-loading-veil" @pointerdown.stop.prevent @click.stop.prevent @wheel.stop.prevent>
+      <div class="rc-loading-pill">
+        <svg class="rc-loading-spinner" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+        </svg>
+        <span>Updating…</span>
+      </div>
+    </div>
+  </Transition>
+
   </div><!-- /rc-root -->
 </template>
 
@@ -1004,13 +1036,38 @@ function applyCalConfig() {
   filterRoomColW.value              = calConfig.calender_room_column
 }
 
+// Optional deferred-commit handler registered by the host via
+// setSaveConfigurationHandler(). When present, Save Configuration hands the
+// config to the host and only applies to the UI when event.commit() is called
+// (e.g. after the host's persist API succeeds). When absent, the existing
+// immediate behaviour runs (apply to UI + emit calendar-config-saved).
+type SaveConfigEvent = { commit: () => void }
+const saveConfigHandler = ref<((config: Record<string, unknown>, event: SaveConfigEvent) => void) | null>(null)
+
 function saveCalConfig() {
+  const cfg = { ...calConfig }
+  calConfigOpen.value = false
+
+  if (saveConfigHandler.value) {
+    // Deferred mode — UI changes wait for the host to call event.commit().
+    let committed = false
+    const event: SaveConfigEvent = {
+      commit() {
+        if (committed) return
+        committed = true
+        applyCalConfig()
+        commitColors()
+      },
+    }
+    saveConfigHandler.value(cfg, event)
+    return
+  }
+
+  // Immediate mode (existing behaviour for other modules).
   applyCalConfig()
   commitColors()
-  const cfg = { ...calConfig }
   emit('calendar-config-saved', cfg)
   postFlutterMessage('calendar-config-saved', cfg)
-  calConfigOpen.value = false
 }
 
 const resizedRoomColW   = ref<number | null>(null)
@@ -1227,6 +1284,59 @@ function formatBalance(amount: number): string {
   return (amount > 0 ? '+' : '') + amount.toLocaleString('en-US')
 }
 
+// Currency display for tooltip totals (IDR). e.g. 6763000 → "Rp 6.763.000"
+function formatMoney(amount: number): string {
+  return 'Rp ' + (amount || 0).toLocaleString('id-ID')
+}
+
+// Map a Font Awesome icon_code (e.g. "b-fa b-fa-user") to a solid inline SVG.
+// Path data is the official Font Awesome 6 Free Solid set; each icon keeps its
+// own viewBox. Unknown codes fall back to the single user.
+type AgentIconKey =
+  | 'user' | 'users' | 'boat' | 'bed' | 'motorcycle'
+  | 'plane-arrival' | 'plane-departure' | 'heart' | 'trash'
+  | 'cake' | 'ban' | 'star' | 'clock' | 'lock'
+
+const AGENT_ICONS: Record<AgentIconKey, { vb: string; d: string }> = {
+  user:              { vb: '0 0 448 512', d: 'M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3C0 498.7 13.3 512 29.7 512H418.3c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304H178.3z' },
+  users:             { vb: '0 0 640 512', d: 'M144 0a80 80 0 1 1 0 160A80 80 0 1 1 144 0zM512 0a80 80 0 1 1 0 160A80 80 0 1 1 512 0zM0 298.7C0 239.8 47.8 192 106.7 192h42.7c15.9 0 31 3.5 44.6 9.7c-1.3 7.2-1.9 14.7-1.9 22.3c0 38.2 16.8 72.5 43.3 96c-.2 0-.4 0-.7 0H21.3C9.6 320 0 310.4 0 298.7zM405.3 320c-.2 0-.4 0-.7 0c26.6-23.5 43.3-57.8 43.3-96c0-7.6-.7-15-1.9-22.3c13.6-6.3 28.7-9.7 44.6-9.7h42.7C592.2 192 640 239.8 640 298.7c0 11.8-9.6 21.3-21.3 21.3H405.3zM224 224a96 96 0 1 1 192 0 96 96 0 1 1 -192 0zM128 485.3C128 411.7 187.7 352 261.3 352H378.7C452.3 352 512 411.7 512 485.3c0 14.7-11.9 26.7-26.7 26.7H154.7c-14.7 0-26.7-11.9-26.7-26.7z' },
+  boat:              { vb: '0 0 576 512', d: 'M192 32c0-17.7 14.3-32 32-32H352c17.7 0 32 14.3 32 32V64h48c26.5 0 48 21.5 48 48V240l44.4 14.8c23.1 7.7 29.5 37.5 11.5 53.9l-101 92.6c-16.2 9.4-34.7 15.1-50.9 15.1c-19.6 0-40.8-7.7-59.2-20.3c-22.1-15.5-51.6-15.5-73.7 0c-17.1 11.8-38 20.3-59.2 20.3c-16.2 0-34.7-5.7-50.9-15.1l-101-92.6c-18-16.5-11.6-46.2 11.5-53.9L96 240V112c0-26.5 21.5-48 48-48h48V32zM160 218.7l107.8-35.9c13.1-4.4 27.3-4.4 40.5 0L416 218.7V128H160v90.7zM306.5 421.9C329 437.4 356.5 448 384 448c26.9 0 55.4-10.8 77.4-26.1l0 0c11.9-8.5 28.1-7.8 39.2 1.7c14.4 11.9 32.5 21 50.6 25.2c17.2 4 27.9 21.2 23.9 38.4s-21.2 27.9-38.4 23.9c-24.5-5.7-44.9-16.5-58.2-25C449.5 501.7 417 512 384 512c-31.9 0-60.6-9.9-80.4-18.9c-5.8-2.7-11.1-5.3-15.6-7.7c-4.5 2.4-9.7 5.1-15.6 7.7c-19.8 9-48.5 18.9-80.4 18.9c-33 0-65.5-10.3-94.5-25.8c-13.4 8.4-33.7 19.3-58.2 25c-17.2 4-34.4-6.7-38.4-23.9s6.7-34.4 23.9-38.4c18.1-4.2 36.2-13.3 50.6-25.2c11.1-9.4 27.3-10.1 39.2-1.7l0 0C136.7 437.2 165.1 448 192 448c27.5 0 55-10.6 77.5-26.1c11.1-7.9 25.9-7.9 37 0z' },
+  bed:               { vb: '0 0 640 512', d: 'M32 32c17.7 0 32 14.3 32 32V320H288V160c0-17.7 14.3-32 32-32H544c53 0 96 43 96 96V448c0 17.7-14.3 32-32 32s-32-14.3-32-32V416H352 320 64v32c0 17.7-14.3 32-32 32s-32-14.3-32-32V64C0 46.3 14.3 32 32 32zm144 96a80 80 0 1 1 0 160 80 80 0 1 1 0-160z' },
+  motorcycle:        { vb: '0 0 640 512', d: 'M280 32c-13.3 0-24 10.7-24 24s10.7 24 24 24h57.7l16.4 30.3L256 192l-45.3-45.3c-12-12-28.3-18.7-45.3-18.7H64c-17.7 0-32 14.3-32 32v32h96c88.4 0 160 71.6 160 160c0 11-1.1 21.7-3.2 32h70.4c-2.1-10.3-3.2-21-3.2-32c0-52.2 25-98.6 63.7-127.8l15.4 28.6C402.4 276.3 384 312 384 352c0 70.7 57.3 128 128 128s128-57.3 128-128s-57.3-128-128-128c-13.5 0-26.5 2.1-38.7 6L418.2 128H480c17.7 0 32-14.3 32-32V64c0-17.7-14.3-32-32-32H459.6c-7.5 0-14.7 2.6-20.5 7.4L391.7 78.9l-14-26c-7-12.9-20.5-21-35.2-21H280zM462.7 311.2l28.2 52.2c6.3 11.7 20.9 16 32.5 9.7s16-20.9 9.7-32.5l-28.2-52.2c2.3-.3 4.7-.4 7.1-.4c35.3 0 64 28.7 64 64s-28.7 64-64 64s-64-28.7-64-64c0-15.5 5.5-29.7 14.7-40.8zM187.3 376c-9.5 23.5-32.5 40-59.3 40c-35.3 0-64-28.7-64-64s28.7-64 64-64c26.9 0 49.9 16.5 59.3 40h66.4C242.5 268.8 190.5 224 128 224C57.3 224 0 281.3 0 352s57.3 128 128 128c62.5 0 114.5-44.8 125.8-104H187.3zM128 384a32 32 0 1 0 0-64 32 32 0 1 0 0 64z' },
+  'plane-arrival':   { vb: '0 0 640 512', d: 'M.3 166.9L0 68C0 57.7 9.5 50.1 19.5 52.3l35.6 7.9c10.6 2.3 19.2 9.9 23 20L96 128l127.3 37.6L181.8 20.4C178.9 10.2 186.6 0 197.2 0h40.1c11.6 0 22.2 6.2 27.9 16.3l109 193.8 107.2 31.7c15.9 4.7 30.8 12.5 43.7 22.8l34.4 27.6c24 19.2 18.1 57.3-10.7 68.2c-41.2 15.6-86.2 18.1-128.8 7L121.7 289.8c-11.1-2.9-21.2-8.7-29.3-16.9L9.5 189.4c-5.9-6-9.3-14.1-9.3-22.5zM32 448H608c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32zm96-80a32 32 0 1 1 64 0 32 32 0 1 1 -64 0zm128-16a32 32 0 1 1 0 64 32 32 0 1 1 0-64z' },
+  'plane-departure': { vb: '0 0 640 512', d: 'M381 114.9L186.1 41.8c-16.7-6.2-35.2-5.3-51.1 2.7L89.1 67.4C78 73 77.2 88.5 87.6 95.2l146.9 94.5L136 240 77.8 214.1c-8.7-3.9-18.8-3.7-27.3 .6L18.3 230.8c-9.3 4.7-11.8 16.8-5 24.7l73.1 85.3c6.1 7.1 15 11.2 24.3 11.2H248.4c5 0 9.9-1.2 14.3-3.4L535.6 212.2c46.5-23.3 82.5-63.3 100.8-112C645.9 75 627.2 48 600.2 48H542.8c-20.2 0-40.2 4.8-58.2 14L381 114.9zM0 480c0 17.7 14.3 32 32 32H608c17.7 0 32-14.3 32-32s-14.3-32-32-32H32c-17.7 0-32 14.3-32 32z' },
+  heart:             { vb: '0 0 512 512', d: 'M47.6 300.4L228.3 469.1c7.5 7 17.4 10.9 27.7 10.9s20.2-3.9 27.7-10.9L464.4 300.4c30.4-28.3 47.6-68 47.6-109.5v-5.8c0-69.9-50.5-129.5-119.4-141C347 36.5 300.6 51.4 268 84L256 96 244 84c-32.6-32.6-79-47.5-124.6-39.9C50.5 55.6 0 115.2 0 185.1v5.8c0 41.5 17.2 81.2 47.6 109.5z' },
+  trash:             { vb: '0 0 448 512', d: 'M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z' },
+  cake:              { vb: '0 0 448 512', d: 'M86.4 5.5L61.8 47.6C58 54.1 56 61.6 56 69.2V72c0 22.1 17.9 40 40 40s40-17.9 40-40V69.2c0-7.6-2-15-5.8-21.6L105.6 5.5C103.6 2.1 100 0 96 0s-7.6 2.1-9.6 5.5zm128 0L189.8 47.6c-3.8 6.5-5.8 14-5.8 21.6V72c0 22.1 17.9 40 40 40s40-17.9 40-40V69.2c0-7.6-2-15-5.8-21.6L233.6 5.5C231.6 2.1 228 0 224 0s-7.6 2.1-9.6 5.5zM317.8 47.6c-3.8 6.5-5.8 14-5.8 21.6V72c0 22.1 17.9 40 40 40s40-17.9 40-40V69.2c0-7.6-2-15-5.8-21.6L361.6 5.5C359.6 2.1 356 0 352 0s-7.6 2.1-9.6 5.5L317.8 47.6zM128 176c0-17.7-14.3-32-32-32s-32 14.3-32 32v48c-35.3 0-64 28.7-64 64v71c8.3 5.2 18.1 9 28.8 9c13.5 0 27.2-6.1 38.4-13.4c5.4-3.5 9.9-7.1 13-9.7c1.5-1.3 2.7-2.4 3.5-3.1c.4-.4 .7-.6 .8-.8l.1-.1 0 0 0 0s0 0 0 0s0 0 0 0c3.1-3.2 7.4-4.9 11.9-4.8s8.6 2.1 11.6 5.4l0 0 0 0 .1 .1c.1 .1 .4 .4 .7 .7c.7 .7 1.7 1.7 3.1 3c2.8 2.6 6.8 6.1 11.8 9.5c10.2 7.1 23 13.1 36.3 13.1s26.1-6 36.3-13.1c5-3.5 9-6.9 11.8-9.5c1.4-1.3 2.4-2.3 3.1-3c.3-.3 .6-.6 .7-.7l.1-.1c3-3.5 7.4-5.4 12-5.4s9 2 12 5.4l.1 .1c.1 .1 .4 .4 .7 .7c.7 .7 1.7 1.7 3.1 3c2.8 2.6 6.8 6.1 11.8 9.5c10.2 7.1 23 13.1 36.3 13.1s26.1-6 36.3-13.1c5-3.5 9-6.9 11.8-9.5c1.4-1.3 2.4-2.3 3.1-3c.3-.3 .6-.6 .7-.7l.1-.1c2.9-3.4 7.1-5.3 11.6-5.4s8.7 1.6 11.9 4.8l0 0 0 0 0 0 .1 .1c.2 .2 .4 .4 .8 .8c.8 .7 1.9 1.8 3.5 3.1c3.1 2.6 7.5 6.2 13 9.7c11.2 7.3 24.9 13.4 38.4 13.4c10.7 0 20.5-3.9 28.8-9V288c0-35.3-28.7-64-64-64V176c0-17.7-14.3-32-32-32s-32 14.3-32 32v48H256V176c0-17.7-14.3-32-32-32s-32 14.3-32 32v48H128V176zM448 394.6c-8.5 3.3-18.2 5.4-28.8 5.4c-22.5 0-42.4-9.9-55.8-18.6c-4.1-2.7-7.8-5.4-10.9-7.8c-2.8 2.4-6.1 5-9.8 7.5C329.8 390 310.6 400 288 400s-41.8-10-54.6-18.9c-3.5-2.4-6.7-4.9-9.4-7.2c-2.7 2.3-5.9 4.7-9.4 7.2C201.8 390 182.6 400 160 400s-41.8-10-54.6-18.9c-3.7-2.6-7-5.2-9.8-7.5c-3.1 2.4-6.8 5.1-10.9 7.8C71.2 390.1 51.3 400 28.8 400c-10.6 0-20.3-2.2-28.8-5.4V480c0 17.7 14.3 32 32 32H416c17.7 0 32-14.3 32-32V394.6z' },
+  ban:               { vb: '0 0 512 512', d: 'M367.2 412.5L99.5 144.8C77.1 176.1 64 214.5 64 256c0 106 86 192 192 192c41.5 0 79.9-13.1 111.2-35.5zm45.3-45.3C434.9 335.9 448 297.5 448 256c0-106-86-192-192-192c-41.5 0-79.9 13.1-111.2 35.5L412.5 367.2zM0 256a256 256 0 1 1 512 0A256 256 0 1 1 0 256z' },
+  star:              { vb: '0 0 576 512', d: 'M316.9 18C311.6 7 300.4 0 288.1 0s-23.4 7-28.8 18L195 150.3 51.4 171.5c-12 1.8-22 10.2-25.7 21.7s-.7 24.2 7.9 32.7L137.8 329 113.2 474.7c-2 12 3 24.2 12.9 31.3s23 8 33.8 2.3l128.3-68.5 128.3 68.5c10.8 5.7 23.9 4.9 33.8-2.3s14.9-19.3 12.9-31.3L438.5 329 542.7 225.9c8.6-8.5 11.7-21.2 7.9-32.7s-13.7-19.9-25.7-21.7L381.2 150.3 316.9 18z' },
+  clock:             { vb: '0 0 512 512', d: 'M256 0a256 256 0 1 1 0 512A256 256 0 1 1 256 0zM232 120V256c0 8 4 15.5 10.7 20l96 64c11 7.4 25.9 4.4 33.3-6.7s4.4-25.9-6.7-33.3L280 243.2V120c0-13.3-10.7-24-24-24s-24 10.7-24 24z' },
+  lock:              { vb: '0 0 448 512', d: 'M144 144v48H304V144c0-44.2-35.8-80-80-80s-80 35.8-80 80zM80 192V144C80 64.5 144.5 0 224 0s144 64.5 144 144v48h16c35.3 0 64 28.7 64 64V448c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V256c0-35.3 28.7-64 64-64H80z' },
+}
+
+function agentIconKey(iconCode?: string): AgentIconKey {
+  const c = (iconCode || '').toLowerCase()
+  // Order matters: check specific/plural codes before generic singular ones.
+  if (/users|user-group|user-friends|people|group/.test(c)) return 'users'
+  if (/ship|boat|ferry|anchor|sailboat/.test(c))            return 'boat'
+  if (/bed/.test(c))                                        return 'bed'
+  if (/motorcycle|motorbike|\bmotor\b/.test(c))             return 'motorcycle'
+  if (/plane-arrival|arrival|plane-landing/.test(c))        return 'plane-arrival'
+  if (/plane-departure|departure|transfer|plane|jet/.test(c)) return 'plane-departure'
+  if (/heart|honeymoon/.test(c))                            return 'heart'
+  if (/trash|empty|delete/.test(c))                         return 'trash'
+  if (/cake|birthday/.test(c))                              return 'cake'
+  if (/ban|do-not|no-entry|prohibit/.test(c))              return 'ban'
+  if (/star|vip/.test(c))                                   return 'star'
+  if (/clock|late|time/.test(c))                            return 'clock'
+  if (/lock/.test(c))                                       return 'lock'
+  return 'user'
+}
+
+function agentIcon(iconCode?: string): { vb: string; d: string } {
+  return AGENT_ICONS[agentIconKey(iconCode)]
+}
+
 const _MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 function formatDateShort(iso: string): string {
   const d = new Date(iso)
@@ -1266,6 +1376,8 @@ const infiniteExtraDays         = ref(0)
 const isInfiniteLoading         = ref(false)
 // True when the grid is scrolled to (or near) its right edge — gates the Load More button
 const atScrollEnd               = ref(false)
+// True while the host is updating data — shows the loading veil and blocks all interaction
+const isCalendarLoading         = ref(false)
 
 const effectiveConfig = computed(() => ({
   ...props.config,
@@ -1278,7 +1390,23 @@ const { tooltipTarget, tooltipStyle, showTooltip, moveTooltip, hideTooltip } = u
 
 const { expandedSections, toggleSection } = useSections(localSections)
 const { visibleDays, weekHeaders }         = useCalendarDays(effectiveConfig)
-const { dragState, pendingMove, confirmMove, cancelMove, revertLastMove, onBlockPointerdown } = useDragDrop(localReservations, emit, effectiveConfig, filterAllowVerticalDrag, hideTooltip)
+// Transient toast shown when a move is blocked by the app-date rule
+const toastMessage = ref('')
+let toastTimer: ReturnType<typeof setTimeout> | null = null
+function showToast(message: string) {
+  toastMessage.value = message
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => { toastMessage.value = ''; toastTimer = null }, 2800)
+}
+
+const { dragState, pendingMove, confirmMove, cancelMove, revertLastMove, onBlockPointerdown } = useDragDrop(
+  localReservations,
+  emit,
+  effectiveConfig,
+  filterAllowVerticalDrag,
+  hideTooltip,
+  () => showToast('This reservation can no longer be moved.'),
+)
 const { roomBlocks, roomTotalRows, wrapRef } = useBlockLayout(localReservations, effectiveConfig, DAY_COL_W, filterBlockStartMidnight)
 const scrollLeft = ref(0)
 let infiniteScrollTimer: ReturnType<typeof setTimeout> | null = null
@@ -1326,12 +1454,27 @@ function loadMoreDays() {
 const newResDrag    = ref<NewResDragState | null>(null)
 const newResPopover = ref<NewResPopover | null>(null)
 
+// First visible day index that may be used to create a reservation. Days whose
+// ISO is before the hotel app date are locked (consistent with the drag-move
+// rule), so the earliest allowed index is the first day on/after appDate.
+const minCreateIdx = computed(() => {
+  const appDate = effectiveConfig.value.appDate
+  if (!appDate) return 0
+  const days = visibleDays.value
+  let i = 0
+  while (i < days.length && days[i].iso < appDate) i++
+  return i
+})
+
 const newResPreview = computed(() => {
   const d = newResDrag.value
   if (!d) return null
   const days = visibleDays.value
-  const minIdx = Math.max(0, Math.min(d.startDayIdx, d.currentDayIdx))
+  // Clamp the left edge so the selection can't extend into locked past dates.
+  const minIdx = Math.max(0, minCreateIdx.value, Math.min(d.startDayIdx, d.currentDayIdx))
   const maxIdx = Math.min(days.length - 1, Math.max(d.startDayIdx, d.currentDayIdx))
+  // Whole selection lies in the locked range → nothing to create.
+  if (maxIdx < minIdx) return null
   return {
     roomId:   d.roomId,
     roomName: d.roomName,
@@ -1561,6 +1704,22 @@ function submitFilterSearch() {
 }
 
 defineExpose({
+  // Loading lock — call before updating data, then hideLoading() when done.
+  // Blocks all calendar interaction (drag/click/scroll/buttons) while active.
+  showLoading() {
+    isCalendarLoading.value = true
+  },
+  hideLoading() {
+    isCalendarLoading.value = false
+  },
+  // Register a deferred Save Configuration handler. When set, clicking
+  // "Save Configuration" calls handler(config, event); the UI updates only
+  // when event.commit() runs. Pass null to restore the immediate behaviour.
+  setSaveConfigurationHandler(
+    handler: ((config: Record<string, unknown>, event: { commit: () => void }) => void) | null,
+  ) {
+    saveConfigHandler.value = handler
+  },
   goToDate(iso: string) {
     const payload = { startDate: iso, endDate: addDays(iso, props.config.visibleDays - 1) }
     emit('date-range-changed', payload)
@@ -1574,10 +1733,20 @@ defineExpose({
   setData(chartingRooms: GuestProChartingRoom[]) {
     localSections.value = transformRoomCharting(chartingRooms)
   },
-  setAvailability(data: { data: { room_type_id: string; total: number; availability: { date: string; available: number }[] }[] }) {
+  setAvailability(data: { data: { room_type_id: string; availability: { date: string; available: number }[] }[] }) {
     const map = new Map<string, Map<string, number>>()
     for (const entry of data.data) {
       const dayMap = new Map<string, number>()
+      for (const a of entry.availability) dayMap.set(a.date, a.available)
+      map.set(entry.room_type_id, dayMap)
+    }
+    sectionAvailability.value = map
+  },
+  appendAvailability(data: { data: { room_type_id: string; availability: { date: string; available: number }[] }[] }) {
+    // Merge incoming day counts into the existing map without dropping prior dates.
+    const map = new Map(sectionAvailability.value)
+    for (const entry of data.data) {
+      const dayMap = new Map(map.get(entry.room_type_id) ?? [])
       for (const a of entry.availability) dayMap.set(a.date, a.available)
       map.set(entry.room_type_id, dayMap)
     }
@@ -2089,6 +2258,12 @@ defineExpose({
 .tt-paid-txt { font-size: 11px; font-weight: 600; color: #f59e0b; white-space: nowrap; }
 .tt-paid-txt.full { color: #16a34a; }
 
+.tt-amounts { display: flex; flex-direction: column; gap: 4px; }
+.tt-amount-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.tt-amount-label { font-size: 11px; color: #6b7280; }
+.tt-amount-val { font-size: 11.5px; font-weight: 700; color: #111827; white-space: nowrap; }
+.tt-amount-val.tt-amount-due { color: #dc2626; }
+
 /* Enter/exit animation — fade + slight scale */
 .tt-enter-active { transition: opacity 150ms cubic-bezier(0.23, 1, 0.32, 1), transform 150ms cubic-bezier(0.23, 1, 0.32, 1); }
 .tt-leave-active { transition: opacity 100ms ease-in, transform 100ms ease-in; }
@@ -2474,6 +2649,62 @@ defineExpose({
   flex-direction: column;
   height: 100%;
 }
+
+/* Loading lock — light veil (calendar stays visible) that intercepts all input */
+.rc-loading-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 90px;
+  background: rgba(255, 255, 255, 0.4);
+  cursor: progress;
+}
+.rc-loading-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #374151;
+}
+.rc-loading-spinner { color: #76b51b; animation: inf-spin 0.7s linear infinite; }
+.rc-loading-fade-enter-active { transition: opacity 0.16s ease-out; }
+.rc-loading-fade-leave-active { transition: opacity 0.14s ease-in; }
+.rc-loading-fade-enter-from,
+.rc-loading-fade-leave-to { opacity: 0; }
+
+/* Transient toast */
+.rc-toast {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 32px);
+  padding: 10px 16px;
+  background: #1f2937;
+  color: #f9fafb;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.rc-toast svg { color: #fbbf24; flex-shrink: 0; }
+.rc-toast-fade-enter-active { transition: opacity 0.18s ease-out, transform 0.18s cubic-bezier(0.23, 1, 0.32, 1); }
+.rc-toast-fade-leave-active { transition: opacity 0.14s ease-in, transform 0.14s ease-in; }
+.rc-toast-fade-enter-from,
+.rc-toast-fade-leave-to { opacity: 0; transform: translateX(-50%) translateY(8px); }
 
 /* Load More spinner rotation */
 @keyframes inf-spin {

@@ -30,8 +30,16 @@ export interface Reservation {
   paidPercent: number
   status: ReservationStatus
   totalBalance?: number
+  /** Total bill for the reservation (API `total`) */
+  totalBill?: number
+  /** Remaining unpaid amount = totalBill − totalPaid (never below 0) */
+  outstanding?: number
   /** OTA / agent name, e.g. "Booking.com", "WALK_IN", "Traveloka" */
   agentName?: string
+  /** Raw Font Awesome class from the API, e.g. "b-fa b-fa-user" */
+  iconCode?: string
+  /** Agent colour hex used to tint the block icon, e.g. "#e6e600" */
+  agentColor?: string
 }
 
 export interface CalendarConfig {
@@ -45,6 +53,9 @@ export interface CalendarConfig {
   dayColWidth?: number
   /** Included in the reservation-moved event payload for move_reservation-v2 API */
   companyId?: string
+  /** Hotel business/audit date (ISO YYYY-MM-DD). Reservations whose check-in is
+   *  same-or-before this date cannot be moved (the drag is rolled back). */
+  appDate?: string
 }
 
 export interface BlockLayout extends Reservation {
