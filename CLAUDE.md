@@ -53,7 +53,7 @@ A Vue 3 Web Component library that exports a single custom element `<room-calend
 When used as a plain HTML custom element, array/object props arrive as JSON strings — any consumer code must call `JSON.parse` before passing them in.
 
 ### Booking block layout
-Blocks are anchored to the **first visible day column** (`idx === 0`) of each room row using `position: absolute`. `left` and `width` are computed from `(checkIn - startDate) / MS_PER_DAY * DAY_COL_W`. The `booking-inner` div shifts rightward (`stickyOffset`) when the block scrolls behind the sticky room column so the guest name stays visible.
+Blocks are anchored to the **first visible day column** (`idx === 0`) of each room row using `position: absolute`. `left` and `width` are computed from `(checkIn - startDate) / MS_PER_DAY * DAY_COL_W`. The `.booking-block` is a flexbox whose `.booking-inner` child uses `position: sticky; left: calc(var(--rc-room-col-w) + 8px)` so the guest name stays visible (pinned just right of the sticky room column) as the block scrolls behind it — the browser auto-clamps the label to the block's own bounds, so it disappears with the block once fully scrolled past. This is pure CSS; `onScroll` no longer transforms blocks per-frame (it only tracks `scrollLeft` and the Load-More edge).
 
 ### Emits (native `CustomEvent`, payload in `event.detail`)
 Every emit is also forwarded via `postFlutterMessage` for Flutter WebView integration.

@@ -364,7 +364,7 @@ cal.setCalendarConfiguration({
   calender_show_hover_tooltips: 1,      // 1 = show detail tooltip on hover
   calender_block_start_midnight: 0,     // 1 = block rendering starts at midnight
   calender_room_column: 170,            // room column width in px
-  calender_room_type_column: 170,       // (reserved)
+  calender_room_type_column: 170,       // accepted & stored for backend round-trip, but has no visual effect (room types render as section header rows, not a column) — no config-popup input
 
   // Status block colors
   background_color_reservation: '#d97706',
