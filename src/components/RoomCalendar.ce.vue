@@ -734,11 +734,10 @@
               <label class="rc-cfg-label">Room Column Width (px)</label>
               <input type="number" class="rc-cfg-number" v-model.number="calConfig.calender_room_column" min="100" max="400" step="10">
             </div>
-
-            <div class="rc-cfg-row">
-              <label class="rc-cfg-label">Room Type Column Width (px)</label>
-              <input type="number" class="rc-cfg-number" v-model.number="calConfig.calender_room_type_column" min="40" max="200" step="10">
-            </div>
+            <!-- Room Type Column Width input removed: this Gantt layout renders room
+                 types as section header rows, not a separate column, so the value
+                 has no visual effect. The calender_room_type_column field is kept in
+                 calConfig for backend round-trip via setCalendarConfiguration(). -->
           </div>
 
           <!-- Status Colors -->
@@ -1034,6 +1033,9 @@ function applyCalConfig() {
   filterShowReservationDetail.value = calConfig.calender_show_hover_tooltips === 1
   filterBlockStartMidnight.value    = calConfig.calender_block_start_midnight === 1
   filterRoomColW.value              = calConfig.calender_room_column
+  // A prior cursor resize takes precedence in ROOM_COL_W via resizedRoomColW;
+  // clear it so the config value actually applies instead of being shadowed.
+  resizedRoomColW.value             = null
 }
 
 // Optional deferred-commit handler registered by the host via
@@ -1412,20 +1414,9 @@ const scrollLeft = ref(0)
 let infiniteScrollTimer: ReturnType<typeof setTimeout> | null = null
 function onScroll(e: Event) {
   const el = e.target as HTMLElement
-  const sl = el.scrollLeft
-  scrollLeft.value = sl
-  // Directly update booking-inner transforms — bypasses Vue reactivity for smooth scrolling
-  const roomColW   = ROOM_COL_W.value
-  const stickyEdge = roomColW + 8
-  for (const inner of el.querySelectorAll<HTMLElement>('.booking-inner')) {
-    const block      = inner.parentElement as HTMLElement
-    const blockLeft  = parseFloat(block.style.left) || 0
-    const blockW     = parseFloat(block.style.width) || 0
-    const screenLeft = blockLeft - sl + roomColW
-    const offset     = screenLeft < stickyEdge ? stickyEdge - screenLeft : 0
-    const maxOffset  = Math.max(0, blockW - 100 - 8)
-    inner.style.transform = `translateX(${Math.min(offset, maxOffset)}px)`
-  }
+  scrollLeft.value = el.scrollLeft
+  // Keeping the booking label visible while scrolling is now handled purely by
+  // CSS (`.booking-inner { position: sticky }`) — no per-block transform needed.
   // Reveal the Load More button only once the user has scrolled to the right edge
   atScrollEnd.value = el.scrollLeft + el.clientWidth >= el.scrollWidth - DAY_COL_W.value
 }
@@ -1827,7 +1818,7 @@ defineExpose({
     commitColors()
   },
   setFilter(filter: CalendarFilter) {
-    if (filter.roomColWidth          !== undefined) filterRoomColW.value             = filter.roomColWidth
+    if (filter.roomColWidth          !== undefined) { filterRoomColW.value = filter.roomColWidth; resizedRoomColW.value = null }
     if (filter.showRoomStatus        !== undefined) filterShowRoomStatus.value       = filter.showRoomStatus
     if (filter.calendarType          !== undefined) filterCalendarType.value         = filter.calendarType
     if (filter.roomOrder             !== undefined) filterRoomOrder.value            = filter.roomOrder
@@ -2057,6 +2048,8 @@ defineExpose({
 .booking-block {
   position: absolute;
   top: 0; bottom: 0;
+  display: flex;
+  align-items: stretch;
   border-radius: 4px;
   background: #16a34a;
   border-left: 3px solid #15803d;
@@ -2115,8 +2108,11 @@ defineExpose({
 }
 
 .booking-inner {
-  position: absolute;
-  top: 0; bottom: 0; left: 0;
+  /* Horizontal sticky: pins the label just right of the sticky room column
+     as the block scrolls left, auto-clamped to the block's own bounds. */
+  position: sticky;
+  left: calc(var(--rc-room-col-w, 170px) + 8px);
+  flex: none;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -2124,7 +2120,6 @@ defineExpose({
   white-space: nowrap;
   pointer-events: none;
   color: var(--block-fg, #fff);
-  will-change: transform;
 }
 .b-left-col {
   display: flex;
