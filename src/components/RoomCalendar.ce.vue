@@ -2134,17 +2134,6 @@ defineExpose({
 .b-name  { font-size: 12px; font-weight: 600; color: var(--block-fg, #fff); }
 .b-folio { font-size: 11px;  color: var(--block-fg, #fff); opacity: 1; }
 .b-paid  { font-size: 11px;  color: var(--block-fg, #fff); opacity: 1; }
-.agent-logo {
-  width: 18px; height: 18px;
-  object-fit: contain;
-  border-radius: 3px;
-  background: rgba(255,255,255,0.9);
-  flex-shrink: 0;
-}
-.agent-icon {
-  opacity: 0.9;
-  flex-shrink: 0;
-}
 
 /* Tooltip */
 .rc-tooltip {
