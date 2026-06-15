@@ -128,9 +128,9 @@ cal.config = {
   startDate: '2026-06-01',
   visibleDays: 30,
   companyId: 'gp-001',
+  appDate: '2026-06-01',
   dayColWidth: 90,
   roomColWidth: 200,
-  agentLogoBaseUrl: 'https://cdn.guestpro.id/agents/',
 }
 ```
 
