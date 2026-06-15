@@ -295,7 +295,7 @@ register()
 // Requests go via Vite proxy (/gp-api → https://core-api.guestpro.id) — no CORS.
 const BASE_URL    = 'https://core-api.guestpro.id/api'
 const COMPANY_ID  = 'bf32c930-8bfd-11e9-8291-9f143c8ac640'
-const ENDPOINTS   = { roomCharting: 'calendar_reservation_resource_list', reservations: 'calendar_reservation_data_list', company: `company/${COMPANY_ID}`, calendarConfig: `calender_configuration/${COMPANY_ID}`, moveReservation: id => `move_reservation-v2/${id}` }
+const ENDPOINTS   = { roomCharting: 'calendar_reservation_resource_list', reservations: 'calendar_reservation_data_list', roomTypeAvailability: 'v2/calendar_room_type_availability', company: `company/${COMPANY_ID}`, calendarConfig: `calender_configuration/${COMPANY_ID}`, moveReservation: id => `move_reservation-v2/${id}` }
 
 // ── LocalStorage ─────────────────────────────────────────────────────────────
 const LS_KEY = 'gp-demo'
@@ -319,9 +319,15 @@ cal.addEventListener('filter-search', e => {
   const dateTo = addDays(dateFrom, 29)
   loadCalendarData(dateFrom, dateTo)
 })
-cal.addEventListener('calendar-config-saved', e => {
-  const cfg = Array.isArray(e.detail) ? e.detail[0] : e.detail
-  saveCalendarConfig(cfg)
+// Deferred-commit save: persist config to the API first, then commit the UI
+// only if the request succeeds. If it fails, the calendar keeps the old config.
+cal.setSaveConfigurationHandler(async (config, event) => {
+  console.log('[save-configuration] config:', config)
+  cal.showLoading()
+  const ok = await saveCalendarConfig(config)
+  cal.hideLoading()
+  if (ok) event.commit()
+  else alert('Failed to save configuration — UI not changed.')
 })
 cal.addEventListener('reservation-moved', e => {
   const p = Array.isArray(e.detail) ? e.detail[0] : e.detail
@@ -388,11 +394,14 @@ async function moveReservation(payload) {
 }
 
 async function saveCalendarConfig(cfg) {
-  if (!bearerToken) return
+  if (!bearerToken) return false
   const headers = { 'Authorization': `Bearer ${bearerToken}`, 'Accept': 'application/json', 'Content-Type': 'application/json' }
   try {
-    await fetch(`${BASE_URL}/${ENDPOINTS.calendarConfig}`, { method: 'PUT', headers, body: JSON.stringify(cfg) })
-  } catch {}
+    const res = await fetch(`${BASE_URL}/${ENDPOINTS.calendarConfig}`, { method: 'PUT', headers, body: JSON.stringify(cfg) })
+    return res.ok
+  } catch {
+    return false
+  }
 }
 
 async function fetchCalendarConfig() {
@@ -404,6 +413,9 @@ async function fetchCalendarConfig() {
     const data = await res.json()
     const cfg = data?.data ?? data
     cal.setCalendarConfiguration(cfg)
+    // Hotel business date — reservations checking in on/before this can't be moved
+    const appDate = (cfg?.app_date || '').slice(0, 10)
+    if (appDate) cal.config = { ...cal.config, appDate }
   } catch {}
 }
 
@@ -436,22 +448,32 @@ window.loadCalendarData = async function (overrideDateFrom, overrideDateTo) {
 
   const headers = { 'Authorization': `Bearer ${bearerToken}`, 'Accept': 'application/json' }
 
+  cal.showLoading()
   try {
     const roomParams = new URLSearchParams({ company_id: COMPANY_ID, is_unallocated: '1', room_type_id: 'all', tags: '' })
     const resvParams = new URLSearchParams({ company_id: COMPANY_ID, room_type_id: 'all', icon_code: 'all', open_availability: '0', start_date: dateFrom, end_date: dateTo, tags: '' })
 
+    const availParams = new URLSearchParams({ company_id: COMPANY_ID, start_date: dateFrom, end_date: dateTo })
+
     const fetches = fromModal
       ? [fetch(`${BASE_URL}/${ENDPOINTS.roomCharting}?${roomParams}`, { headers }),
-         fetch(`${BASE_URL}/${ENDPOINTS.reservations}?${resvParams}`, { headers })]
+         fetch(`${BASE_URL}/${ENDPOINTS.reservations}?${resvParams}`, { headers }),
+         fetch(`${BASE_URL}/${ENDPOINTS.roomTypeAvailability}?${availParams}`, { headers })]
       : [Promise.resolve(null),
-         fetch(`${BASE_URL}/${ENDPOINTS.reservations}?${resvParams}`, { headers })]
+         fetch(`${BASE_URL}/${ENDPOINTS.reservations}?${resvParams}`, { headers }),
+         fetch(`${BASE_URL}/${ENDPOINTS.roomTypeAvailability}?${availParams}`, { headers })]
 
-    const [roomsRes, resvRes] = await Promise.all(fetches)
+    const [roomsRes, resvRes, availRes] = await Promise.all(fetches)
 
     if (fromModal && !roomsRes.ok) throw new Error(`Room charting: HTTP ${roomsRes.status}`)
     if (!resvRes.ok) throw new Error(`Reservations: HTTP ${resvRes.status}`)
 
     const resvJson  = await resvRes.json()
+    const availJson = availRes?.ok ? await availRes.json() : null
+    if (availJson) {
+      console.log('[room-type-availability] response:', availJson)
+      cal.setAvailability(availJson)
+    }
 
     if (fromModal) {
       const roomsJson = await roomsRes.json()
@@ -469,6 +491,7 @@ window.loadCalendarData = async function (overrideDateFrom, overrideDateTo) {
   } catch (err) {
     if (fromModal) setStatus('load-status', 'error', err.message || String(err))
   } finally {
+    cal.hideLoading()
     if (fromModal) $('do-load-btn').disabled = false
   }
 }
@@ -476,13 +499,19 @@ window.loadCalendarData = async function (overrideDateFrom, overrideDateTo) {
 async function fetchAndAppendReservations(dateFrom, dateTo) {
   if (!bearerToken) return
   const headers = { 'Authorization': `Bearer ${bearerToken}`, 'Accept': 'application/json' }
-  const resvParams = new URLSearchParams({ company_id: COMPANY_ID, room_type_id: 'all', icon_code: 'all', open_availability: '0', start_date: dateFrom, end_date: dateTo, tags: '' })
+  const resvParams  = new URLSearchParams({ company_id: COMPANY_ID, room_type_id: 'all', icon_code: 'all', open_availability: '0', start_date: dateFrom, end_date: dateTo, tags: '' })
+  const availParams = new URLSearchParams({ company_id: COMPANY_ID, start_date: dateFrom, end_date: dateTo })
+  cal.showLoading()
   try {
-    const res = await fetch(`${BASE_URL}/${ENDPOINTS.reservations}?${resvParams}`, { headers })
-    if (!res.ok) return
-    const data = await res.json()
-    cal.appendReservation(data)
-  } catch {}
+    const [resvRes, availRes] = await Promise.all([
+      fetch(`${BASE_URL}/${ENDPOINTS.reservations}?${resvParams}`, { headers }),
+      fetch(`${BASE_URL}/${ENDPOINTS.roomTypeAvailability}?${availParams}`, { headers }),
+    ])
+    if (resvRes.ok) cal.appendReservation(await resvRes.json())
+    if (availRes.ok) cal.appendAvailability(await availRes.json())
+  } catch {} finally {
+    cal.hideLoading()
+  }
 }
 
 window.clearCalendar = function () {

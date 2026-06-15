@@ -1,6 +1,9 @@
 # Room Calendar — Developer Guide
 
-A Vue 3 Web Component that renders a Gantt-style reservation calendar for GuestPro PMS. It ships as a single custom element `<room-calendar>` and integrates with the GuestPro backend API.
+A self-contained Web Component that renders a Gantt-style reservation calendar for GuestPro PMS. It ships as a single custom element `<room-calendar>` and works with **any framework or no framework** — Vue 2, Vue 3, React, Angular, Flutter WebView, or plain HTML.
+
+> **Framework compatibility note**
+> The library bundles its own Vue 3 runtime internally. The host application does **not** need to install or use Vue. Communication happens entirely through native DOM properties and `CustomEvent`s.
 
 ---
 
@@ -27,15 +30,60 @@ A Vue 3 Web Component that renders a Gantt-style reservation calendar for GuestP
 npm install room-calendar-guestpro
 ```
 
-### Register the custom element
+### Option A — ES module import (bundler / Vite / Webpack)
 
 ```js
 import { register } from 'room-calendar-guestpro'
 
-register() // registers <room-calendar>
+register() // registers <room-calendar> with the browser
 ```
 
-Or in a Flutter WebView, load the built JS bundle — the element self-registers on import.
+This works in any app regardless of its own framework (Vue 2, Vue 3, React, etc.).
+
+### Option B — Plain `<script>` tag (no bundler / Flutter WebView)
+
+```html
+<script src="room-calendar.umd.cjs"></script>
+<script>
+  RoomCalendar.register()
+</script>
+```
+
+The UMD bundle is fully self-contained — Vue 3 is already bundled inside.
+
+### Using in Vue 2
+
+```js
+// main.js
+import { register } from 'room-calendar-guestpro'
+register()
+
+new Vue({
+  el: '#app',
+  // Tell Vue 2 to leave <room-calendar> alone (it is a native custom element)
+  ignoredElements: ['room-calendar'],
+})
+```
+
+Then use it in templates as a plain HTML element:
+
+```html
+<room-calendar ref="cal"></room-calendar>
+```
+
+Access the public API via `this.$refs.cal` (the underlying DOM element, not a Vue component).
+
+### Using in Vue 3
+
+```js
+// main.js
+import { register } from 'room-calendar-guestpro'
+register()
+
+const app = createApp(App)
+app.config.compilerOptions.isCustomElement = (tag) => tag === 'room-calendar'
+app.mount('#app')
+```
 
 ---
 
@@ -71,6 +119,7 @@ Passed as a JS object (not a JSON string) to the `config` property.
 | `startDate` | `string` | Yes | — | First visible date (`YYYY-MM-DD`) |
 | `visibleDays` | `number` | Yes | — | Number of day columns to show |
 | `companyId` | `string` | No | — | Forwarded in `reservation-moved` event payloads |
+| `appDate` | `string` | No | — | Hotel business/audit date (`YYYY-MM-DD`). Dates **before** this are locked: a reservation whose check-in is before `appDate` cannot be moved (drag rolled back + toast), and drag-to-create can't select locked dates. The `appDate` itself is allowed. Omit to disable the restriction. |
 | `dayColWidth` | `number` | No | `100` | Width of each day column in pixels |
 | `roomColWidth` | `number` | No | `170` | Width of the room label column in pixels |
 
@@ -130,11 +179,12 @@ cal.updateReservations(updatedReservationApiResponse)
 Sets the availability badge count shown on room-type section header rows.
 
 ```js
+// Pass the API response directly — no transformation needed.
+// Shape matches the v2/calendar_room_type_availability response.
 cal.setAvailability({
   data: [
     {
-      room_type_id: 'deluxe',
-      total: 10,
+      room_type_id: 'cd417c00-1c6b-11ee-950c-91867f928fa6',
       availability: [
         { date: '2026-06-01', available: 3 },
         { date: '2026-06-02', available: 5 },
@@ -143,6 +193,25 @@ cal.setAvailability({
   ],
 })
 ```
+
+### `appendAvailability(data)`
+
+Same payload shape as `setAvailability`, but **merges** the incoming day counts into the existing availability instead of replacing it. Use this for infinite scroll / Load More so previously loaded dates keep their badges.
+
+```js
+cal.appendAvailability(nextRangeAvailabilityResponse)
+```
+
+### Reservation fields used by the block & tooltip
+
+These fields from the `calendar_reservation_data_list` response are read automatically — no extra calls needed:
+
+| API field | Effect |
+|---|---|
+| `icon_code` | Font Awesome class (e.g. `"b-fa b-fa-user"`) → solid icon shown on the left of the block. Unknown codes fall back to a single-user icon. Supported: user, users, ship/boat, bed, motorcycle, plane-arrival, plane-departure, heart, trash, cake, ban, star, clock, lock. |
+| `agent_color` | Hex color used to tint the block icon (e.g. `"#e6e600"`). |
+| `total` | Shown as **Total Bill** in the hover tooltip (formatted `Rp …`). |
+| `total_paid` | Drives the paid % bar; **Outstanding** = `total − total_paid` (shown red when > 0). |
 
 ---
 
@@ -177,6 +246,25 @@ const cal = document.getElementById('cal')
 |---|---|
 | `cal.revertLastMove()` | Undo the last drag-move (call this if the `reservation-moved` API call fails) |
 
+### Loading Lock
+
+Block all calendar interaction (drag, click, scroll, buttons) while you update data. The calendar stays visible under a light veil with a small "Updating…" spinner.
+
+| Method | Description |
+|---|---|
+| `cal.showLoading()` | Show the loading veil and disable all interaction |
+| `cal.hideLoading()` | Hide the veil and re-enable interaction |
+
+```js
+cal.showLoading()
+try {
+  const data = await api.getReservations(...)
+  cal.loadReservation(data)
+} finally {
+  cal.hideLoading()
+}
+```
+
 ---
 
 ## 6. Events
@@ -196,8 +284,8 @@ cal.addEventListener('reservation-clicked', (e) => {
 | `date-range-changed` | `{ startDate, endDate }` | Calendar navigates to a new date range |
 | `new-reservation` | `{ roomId, checkIn, checkOut, type }` | User drags on an empty cell to create a reservation |
 | `filter-search` | `{ startDate, openAvailability }` | User submits the filter/search panel |
-| `calendar-config-saved` | Full config snapshot (`object`) | User saves visual settings from the config panel |
-| `infinite-scroll-load` | `{ startDate, endDate }` | User scrolls near the edge — load more data |
+| `calendar-config-saved` | Full config snapshot (`object`) | User saves visual settings from the config panel (immediate mode only — see [Deferred Save](#deferred-save-configuration)) |
+| `infinite-scroll-load` | `{ startDate, endDate }` | User clicks the **Load More** button after scrolling to the right edge |
 
 ### Example: handling `reservation-moved`
 
@@ -213,6 +301,8 @@ cal.addEventListener('reservation-moved', async (e) => {
 ```
 
 ### Example: handling `infinite-scroll-load`
+
+A **Load More** button appears in the toolbar once the user scrolls to the right edge of the grid. Clicking it fires this event and appends 30 more days.
 
 ```js
 cal.addEventListener('infinite-scroll-load', async (e) => {
@@ -235,6 +325,32 @@ cal.addEventListener('new-reservation', (e) => {
 ---
 
 ## 7. Calendar Configuration (Visual Settings)
+
+### Deferred Save Configuration
+
+By default, clicking **Save Configuration** in the config panel applies the changes to the UI immediately and fires the `calendar-config-saved` event.
+
+If you need to persist the config to your backend **first** and only update the UI on success, register a deferred handler with `setSaveConfigurationHandler`. Your handler receives `(config, event)`; the UI changes **only** when you call `event.commit()`. If you never call it, the calendar keeps its previous settings.
+
+```js
+cal.setSaveConfigurationHandler(async (config, event) => {
+  console.log(config) // current draft config from the panel
+
+  const ok = await api.saveCalendarConfig(config) // persist to your backend
+  if (ok) {
+    event.commit()    // now apply the changes to the calendar UI
+  }
+  // if you don't commit, the UI stays unchanged
+})
+```
+
+- When a handler is registered, the `calendar-config-saved` event is **not** fired (your handler already has the config).
+- Pass `null` to remove the handler and restore the immediate-update behaviour: `cal.setSaveConfigurationHandler(null)`.
+- Other modules that don't register a handler keep the existing immediate-update model.
+
+---
+
+### `setCalendarConfiguration`
 
 `setCalendarConfiguration` applies visual settings using GuestPro backend field names. Call this once after fetching the user's saved calendar config.
 

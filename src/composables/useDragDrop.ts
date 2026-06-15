@@ -29,7 +29,13 @@ export function useDragDrop(
   config: Ref<CalendarConfig>,
   allowVerticalDrag: Ref<boolean>,
   onDragEnd?: () => void,
+  onMoveBlocked?: (reservation: Reservation) => void,
 ) {
+  // True when the first ISO date is strictly before the second.
+  // Both are YYYY-MM-DD so lexicographic comparison is correct.
+  function isBefore(first: string, second: string): boolean {
+    return first < second
+  }
   const dragState        = ref<DragState | null>(null)
   const pendingMove      = ref<PendingMove | null>(null)
   // Kept after confirmMove so the caller can revert on API error
@@ -155,6 +161,15 @@ export function useDragDrop(
         const payload = { reservation: { ...block }, room }
         emit('reservation-clicked', payload)
         postFlutterMessage('reservation-clicked', payload)
+        return
+      }
+
+      // Business rule: a reservation whose check-in is before the hotel
+      // app/business date cannot be moved. Roll back and notify the host.
+      const appDate = config.value.appDate
+      if (appDate && isBefore(block.checkIn, appDate)) {
+        if (blockIdx !== -1) localReservations.value[blockIdx] = snapshot
+        onMoveBlocked?.(snapshot)
         return
       }
 

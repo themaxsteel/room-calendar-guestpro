@@ -56,6 +56,8 @@ export interface GuestProReservationItem {
   total_paid?: number | string
   is_cancelled?: number
   agent_name?: string | null
+  icon_code?: string | null
+  agent_color?: string | null
   [key: string]: unknown
 }
 
@@ -115,6 +117,7 @@ export function transformReservations(
     const total     = Number(item.total)      || 0
     const totalPaid = Number(item.total_paid) || 0
     const paidPercent = total > 0 ? Math.min(100, Math.round((totalPaid / total) * 100)) : 0
+    const outstanding = Math.max(0, total - totalPaid)
 
     result.push({
       id: item.id,
@@ -124,8 +127,12 @@ export function transformReservations(
       checkIn,
       checkOut,
       paidPercent,
+      totalBill: total,
+      outstanding,
       status: normalizeReservationStatus(s),
       agentName: item.agent_name ?? undefined,
+      iconCode: typeof item.icon_code === 'string' ? item.icon_code : undefined,
+      agentColor: typeof item.agent_color === 'string' ? item.agent_color : undefined,
     })
   }
   return result
