@@ -1345,16 +1345,6 @@ function formatDateShort(iso: string): string {
   return `${d.getDate()} ${_MONTHS_SHORT[d.getMonth()]}`
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  'CHECK-IN': 'Checked In',
-  'CHECK-OUT': 'Checked Out',
-  'DEFINITE': 'Confirmed',
-  'BOOKED': 'Booked',
-  'ROOM_MAINTENANCE': 'Maintenance',
-}
-function statusLabel(status: string): string {
-  return STATUS_LABELS[status] ?? status
-}
 function statusClass(status: string): string {
   return 'tt-st-' + status.toLowerCase().replace(/_/g, '-')
 }
