@@ -40,6 +40,12 @@ export interface Reservation {
   iconCode?: string
   /** Agent colour hex used to tint the block icon, e.g. "#e6e600" */
   agentColor?: string
+  /** Raw original GuestPro reservation item (calendar_reservation_data) this
+   *  reservation was built from. Preserved so the move event can send the REAL
+   *  arrival_date / departure_date — `checkIn`/`checkOut` are derived from the
+   *  timeline fields (startDate/endDate) which the backend may clamp to the
+   *  visible window and therefore must not be treated as the real dates. */
+  raw?: Record<string, unknown>
 }
 
 export interface CalendarConfig {
@@ -56,6 +62,12 @@ export interface CalendarConfig {
   /** Hotel business/audit date (ISO YYYY-MM-DD). Reservations whose check-in is
    *  same-or-before this date cannot be moved (the drag is rolled back). */
   appDate?: string
+  /** Key in the raw reservation item used to position the block's START on the
+   *  timeline. Default "startDate". */
+  key_start_date_timeline_item_calendar?: string
+  /** Key in the raw reservation item used to position the block's END on the
+   *  timeline. Default "endDate". */
+  key_end_date_timeline_item_calendar?: string
 }
 
 export interface BlockLayout extends Reservation {
@@ -94,6 +106,8 @@ export interface ReservationMovedPayload {
   company_id: string
   /** original room before the move */
   from_room_id: string
+  /** Raw original reservation item (calendar_reservation_data) */
+  original?: Record<string, unknown>
 }
 
 export interface DateRangeChangedPayload {

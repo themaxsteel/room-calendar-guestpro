@@ -95,8 +95,13 @@ export function transformRoomCharting(rooms: GuestProChartingRoom[]): RoomSectio
 
 export function transformReservations(
   input: GuestProReservationItem[] | GuestProReservationResponse,
+  opts?: { startKey?: string; endKey?: string },
 ): Reservation[] {
   const items: GuestProReservationItem[] = Array.isArray(input) ? input : input.data
+  // Which raw fields drive the block's timeline position. Configurable via
+  // CalendarConfig; defaults preserve the calendar_reservation_data_list shape.
+  const startKey = opts?.startKey || 'startDate'
+  const endKey   = opts?.endKey   || 'endDate'
 
   const result: Reservation[] = []
   for (const item of items) {
@@ -108,9 +113,14 @@ export function transformReservations(
     // Support both calendar_reservation_data_list (new) and search_reservation (legacy)
     const roomId    = (item.resourceId || item.room_id || '').trim()
     const guestName = (item.name || item.guest_profile_name || item.guest_profile || '').trim()
-    // startDate may include time "2026-05-06 00:00:00" — strip to date only
-    const checkIn   = (item.startDate  || item.arrival_date   || '').slice(0, 10)
-    const checkOut  = (item.endDate    || item.departure_date  || '').slice(0, 10)
+    // Timeline position uses the configured key (default startDate/endDate); these
+    // may be clamped to the visible window by the backend, so they are display-only
+    // — the real arrival_date/departure_date live on `raw`. Values may include time
+    // ("2026-05-06 00:00:00"), so strip to date only.
+    const startRaw  = item[startKey]
+    const endRaw    = item[endKey]
+    const checkIn   = ((typeof startRaw === 'string' && startRaw) || item.arrival_date   || '').slice(0, 10)
+    const checkOut  = ((typeof endRaw   === 'string' && endRaw)   || item.departure_date || '').slice(0, 10)
 
     if (!roomId || !checkIn || !checkOut) continue
 
@@ -133,6 +143,9 @@ export function transformReservations(
       agentName: item.agent_name ?? undefined,
       iconCode: typeof item.icon_code === 'string' ? item.icon_code : undefined,
       agentColor: typeof item.agent_color === 'string' ? item.agent_color : undefined,
+      // Keep the raw item so the move event can send the real arrival_date /
+      // departure_date instead of the (possibly clamped) timeline dates.
+      raw: item,
     })
   }
   return result

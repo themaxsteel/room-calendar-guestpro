@@ -122,6 +122,8 @@ Passed as a JS object (not a JSON string) to the `config` property.
 | `appDate` | `string` | No | — | Hotel business/audit date (`YYYY-MM-DD`). Dates **before** this are locked: a reservation whose check-in is before `appDate` cannot be moved (drag rolled back + toast), and drag-to-create can't select locked dates. The `appDate` itself is allowed. Omit to disable the restriction. |
 | `dayColWidth` | `number` | No | `100` | Width of each day column in pixels |
 | `roomColWidth` | `number` | No | `170` | Width of the room label column in pixels |
+| `key_start_date_timeline_item_calendar` | `string` | No | `"startDate"` | Raw reservation field used to position a block's **start** on the timeline. The backend may clamp this to the visible window, so it is display-only — the real check-in for the move API comes from `arrival_date`. |
+| `key_end_date_timeline_item_calendar` | `string` | No | `"endDate"` | Raw reservation field used to position a block's **end** on the timeline (display-only, see above). |
 
 ```js
 cal.config = {
@@ -131,8 +133,13 @@ cal.config = {
   appDate: '2026-06-01',
   dayColWidth: 90,
   roomColWidth: 200,
+  // Defaults shown — only override if your payload uses different field names
+  key_start_date_timeline_item_calendar: 'startDate',
+  key_end_date_timeline_item_calendar: 'endDate',
 }
 ```
+
+> **Timeline dates vs. real dates.** Each block is positioned on the timeline using `startDate`/`endDate` (or the configured keys above), which the backend may clamp to the visible window. The reservation's **real** dates (`arrival_date`/`departure_date`) and the full raw item are preserved and sent with the `reservation-moved` event — see [Example: handling `reservation-moved`](#example-handling-reservation-moved).
 
 ---
 
@@ -282,7 +289,7 @@ cal.addEventListener('reservation-clicked', (e) => {
 | Event | Payload (`event.detail`) | When fired |
 |---|---|---|
 | `reservation-clicked` | `{ reservation, room }` | User clicks a booking block |
-| `reservation-moved` | `{ id, room_id, arrival_date, departure_date, company_id, from_room_id }` | User drops a block to a new room/date |
+| `reservation-moved` | `{ id, room_id, arrival_date, departure_date, company_id, from_room_id, original }` | User drops a block to a new room. `arrival_date`/`departure_date` are the reservation's **real** dates (not the clamped timeline dates); `original` is the full raw reservation item. |
 | `date-range-changed` | `{ startDate, endDate }` | Calendar navigates to a new date range |
 | `new-reservation` | `{ roomId, checkIn, checkOut, type }` | User drags on an empty cell to create a reservation |
 | `filter-search` | `{ startDate, openAvailability }` | User submits the filter/search panel |
@@ -291,9 +298,11 @@ cal.addEventListener('reservation-clicked', (e) => {
 
 ### Example: handling `reservation-moved`
 
+`arrival_date` / `departure_date` are the reservation's **real** dates (taken from the raw item's `arrival_date`/`departure_date`), so they match what the move API expects — they are **not** the timeline `startDate`/`endDate`, which the backend may clamp to the visible window. The full raw item is also provided as `original` if you need other fields.
+
 ```js
 cal.addEventListener('reservation-moved', async (e) => {
-  const { id, room_id, arrival_date, departure_date, company_id, from_room_id } = e.detail
+  const { id, room_id, arrival_date, departure_date, company_id, from_room_id, original } = e.detail
   try {
     await api.moveReservation({ id, room_id, arrival_date, departure_date, company_id })
   } catch {

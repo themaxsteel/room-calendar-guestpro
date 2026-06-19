@@ -901,7 +901,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   'reservation-clicked': [payload: { reservation: Reservation; room: Room }]
-  'reservation-moved':  [payload: { id: string; room_id: string; arrival_date: string; departure_date: string; company_id: string; from_room_id: string }]
+  'reservation-moved':  [payload: { id: string; room_id: string; arrival_date: string; departure_date: string; company_id: string; from_room_id: string; original?: Record<string, unknown> }]
   'date-range-changed': [payload: { startDate: string; endDate: string }]
   'new-reservation':    [payload: { roomId: string; checkIn: string; checkOut: string; type: 'room-plan' | 'single' | 'group' }]
   'calendar-config-saved': [payload: Record<string, unknown>]
@@ -1379,6 +1379,13 @@ const effectiveConfig = computed(() => ({
   visibleDays: (filterVisibleDaysOverride.value ?? props.config.visibleDays) + infiniteExtraDays.value,
 }))
 
+// Which raw fields the adapter should read for timeline positioning. Configurable
+// via config; defaults to the calendar_reservation_data_list shape (startDate/endDate).
+const timelineKeyOpts = () => ({
+  startKey: props.config.key_start_date_timeline_item_calendar,
+  endKey:   props.config.key_end_date_timeline_item_calendar,
+})
+
 
 const { tooltipTarget, tooltipStyle, showTooltip, moveTooltip, hideTooltip } = useTooltip()
 
@@ -1739,16 +1746,16 @@ defineExpose({
     sectionAvailability.value = map
   },
   loadReservation(data: GuestProReservationItem[] | GuestProReservationResponse) {
-    localReservations.value = transformReservations(data)
+    localReservations.value = transformReservations(data, timelineKeyOpts())
   },
   appendReservation(data: GuestProReservationItem[] | GuestProReservationResponse) {
-    const incoming = transformReservations(data)
+    const incoming = transformReservations(data, timelineKeyOpts())
     const existingIds = new Set(localReservations.value.map(r => r.id))
     const toAdd = incoming.filter(r => !existingIds.has(r.id))
     if (toAdd.length) localReservations.value = [...localReservations.value, ...toAdd]
   },
   updateReservations(data: GuestProReservationItem[] | GuestProReservationResponse) {
-    const incoming = transformReservations(data)
+    const incoming = transformReservations(data, timelineKeyOpts())
     const baseId = (id: string) => id.split(';')[0]
     const updated = [...localReservations.value]
     for (const next of incoming) {

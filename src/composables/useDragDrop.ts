@@ -4,7 +4,7 @@ import type { Room, Reservation, BlockLayout, DragState, CalendarConfig } from '
 
 interface DragDropEmit {
   (event: 'reservation-clicked', payload: { reservation: Reservation; room: Room }): void
-  (event: 'reservation-moved', payload: { id: string; room_id: string; arrival_date: string; departure_date: string; company_id: string; from_room_id: string }): void
+  (event: 'reservation-moved', payload: { id: string; room_id: string; arrival_date: string; departure_date: string; company_id: string; from_room_id: string; original?: Record<string, unknown> }): void
 }
 
 interface PendingMove {
@@ -15,6 +15,7 @@ interface PendingMove {
   company_id:     string
   from_room_id:   string
   snapshot:       Reservation
+  original?:      Record<string, unknown>
 }
 
 function postFlutterMessage(type: string, payload: unknown) {
@@ -53,6 +54,7 @@ export function useDragDrop(
       departure_date: p.departure_date,
       company_id:     p.company_id,
       from_room_id:   p.from_room_id,
+      original:       p.original,
     }
     emit('reservation-moved', payload)
     postFlutterMessage('reservation-moved', payload)
@@ -173,15 +175,27 @@ export function useDragDrop(
         return
       }
 
+      // Use the reservation's REAL arrival/departure (from the raw item) for the
+      // move payload. block.checkIn/checkOut come from the timeline fields, which
+      // the backend may clamp to the visible window — sending those makes the move
+      // API reject with "different date". Fall back to checkIn/checkOut when raw
+      // dates are absent (e.g. reservations supplied via the plain props API).
+      const raw = snapshot.raw
+      const realArrival   = typeof raw?.arrival_date   === 'string' && raw.arrival_date
+        ? raw.arrival_date.slice(0, 10)   : block.checkIn
+      const realDeparture = typeof raw?.departure_date === 'string' && raw.departure_date
+        ? raw.departure_date.slice(0, 10) : block.checkOut
+
       // Block is already at newRoomId (moved live during drag)
       pendingMove.value = {
         id:             block.id,
         room_id:        newRoomId,
-        arrival_date:   block.checkIn,
-        departure_date: block.checkOut,
+        arrival_date:   realArrival,
+        departure_date: realDeparture,
         company_id:     config.value.companyId ?? '',
         from_room_id:   block.roomId,
         snapshot,
+        original:       raw,
       }
     }
 
