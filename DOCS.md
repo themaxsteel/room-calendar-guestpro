@@ -248,21 +248,23 @@ const cal = document.getElementById('cal')
 
 ### Loading Lock
 
-Block all calendar interaction (drag, click, scroll, buttons) while you update data. The calendar stays visible under a light veil with a small "Updating…" spinner.
+Block all calendar interaction (drag, click, scroll, buttons) while you update data. The calendar stays visible under a light veil with a small spinner.
 
 | Method | Description |
 |---|---|
-| `cal.showLoading()` | Show the loading veil and disable all interaction |
+| `cal.showLoading(text?)` | Show the loading veil and disable all interaction. Pass an optional message to vary the text per action; omit it to use the default `"Loading..."`. |
 | `cal.hideLoading()` | Hide the veil and re-enable interaction |
 
 ```js
-cal.showLoading()
+cal.showLoading('Saving reservation...')   // custom text
 try {
   const data = await api.getReservations(...)
   cal.loadReservation(data)
 } finally {
   cal.hideLoading()
 }
+
+cal.showLoading()   // no argument → shows the default "Loading..."
 ```
 
 ---

@@ -860,7 +860,7 @@
         <svg class="rc-loading-spinner" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
           <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
         </svg>
-        <span>Updating…</span>
+        <span>{{ loadingText }}</span>
       </div>
     </div>
   </Transition>
@@ -1370,6 +1370,8 @@ const isInfiniteLoading         = ref(false)
 const atScrollEnd               = ref(false)
 // True while the host is updating data — shows the loading veil and blocks all interaction
 const isCalendarLoading         = ref(false)
+const DEFAULT_LOADING_TEXT      = 'Loading...'
+const loadingText               = ref(DEFAULT_LOADING_TEXT)
 
 const effectiveConfig = computed(() => ({
   ...props.config,
@@ -1687,7 +1689,10 @@ function submitFilterSearch() {
 defineExpose({
   // Loading lock — call before updating data, then hideLoading() when done.
   // Blocks all calendar interaction (drag/click/scroll/buttons) while active.
-  showLoading() {
+  // Pass an optional message to vary the text per action (e.g.
+  // showLoading('Saving reservation...')); omit it to fall back to the default.
+  showLoading(text?: string) {
+    loadingText.value = text ?? DEFAULT_LOADING_TEXT
     isCalendarLoading.value = true
   },
   hideLoading() {
