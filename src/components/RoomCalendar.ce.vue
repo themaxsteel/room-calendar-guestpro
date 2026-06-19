@@ -113,12 +113,14 @@
           <!-- Section header -->
           <tr v-if="filterCalendarType === 'by-room-type'" class="section-row" @click="toggleSection(section.id)">
             <td class="section-first" style="box-shadow: inset 3px 0 0 #9ca3af">
-              {{ section.label }} ({{ section.rooms.length }})
-              <span class="section-chevron" :class="{ 'is-open': expandedSections[section.id] }">
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                  <path d="M2 3.5 L5 6.5 L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </span>
+              <div class="section-first-inner">
+                {{ section.label }} ({{ section.rooms.length }})
+                <span class="section-chevron" :class="{ 'is-open': expandedSections[section.id] }">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                    <path d="M2 3.5 L5 6.5 L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+              </div>
             </td>
             <td v-for="day in visibleDays" :key="day.iso" class="section-rest">
               <span
@@ -2014,9 +2016,14 @@ defineExpose({
   border-right: 1px solid #e5e7eb !important;
   vertical-align: middle !important;
   overflow: hidden !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
+  /* Keep this td as a table cell so `position: sticky` (first-column pin) works
+     in Safari/Firefox — flex layout lives on .section-first-inner instead. Putting
+     display:flex on the cell itself silently breaks sticky outside Chromium. */
+}
+.section-first-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 .section-rest {
   background: #f5f5f5 !important;
