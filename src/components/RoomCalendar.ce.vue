@@ -905,7 +905,7 @@ const emit = defineEmits<{
   'reservation-clicked': [payload: { reservation: Reservation; room: Room }]
   'reservation-moved':  [payload: { id: string; room_id: string; arrival_date: string; departure_date: string; company_id: string; from_room_id: string; original?: Record<string, unknown> }]
   'date-range-changed': [payload: { startDate: string; endDate: string }]
-  'new-reservation':    [payload: { roomId: string; checkIn: string; checkOut: string; type: 'room-plan' | 'single' | 'group' }]
+  'new-reservation':    [payload: { roomId: string; roomName: string; roomTypeId: string; roomTypeName: string; checkIn: string; checkOut: string; type: 'room-plan' | 'single' | 'group' }]
   'calendar-config-saved': [payload: Record<string, unknown>]
   'filter-search': [payload: { startDate: string; openAvailability: boolean }]
   'infinite-scroll-load': [payload: { startDate: string; endDate: string }]
@@ -1470,6 +1470,8 @@ const newResPreview = computed(() => {
   return {
     roomId:   d.roomId,
     roomName: d.roomName,
+    roomTypeId:   d.roomTypeId,
+    roomTypeName: d.roomTypeName,
     left:     minIdx * DAY_COL_W.value + (filterBlockStartMidnight.value ? 0 : DAY_COL_W.value / 2),
     width:    (maxIdx - minIdx + 1) * DAY_COL_W.value,
     checkIn:  days[minIdx].iso,
@@ -1478,7 +1480,7 @@ const newResPreview = computed(() => {
 })
 
 // Frozen preview kept alive while popover is open
-const frozenPreview = ref<{ roomId: string; roomName: string; left: number; width: number; checkIn: string; checkOut: string } | null>(null)
+const frozenPreview = ref<{ roomId: string; roomName: string; roomTypeId: string; roomTypeName: string; left: number; width: number; checkIn: string; checkOut: string } | null>(null)
 
 function blockCenterX(preview: { left: number; width: number }) {
   const wrap = wrapRef.value
@@ -1529,8 +1531,10 @@ function onCellPointerdown(event: PointerEvent, room: Room, dayIdx: number) {
   event.preventDefault()
 
   const startClientX = event.clientX
+  const section = localSections.value.find(s => s.rooms.some(r => r.id === room.id))
   newResDrag.value = {
     roomId: room.id, roomName: room.name,
+    roomTypeId: section?.id ?? '', roomTypeName: section?.label ?? '',
     startDayIdx: dayIdx, currentDayIdx: dayIdx,
     startClientX,
     mouseX: event.clientX, mouseY: event.clientY,
@@ -1562,10 +1566,12 @@ function onCellPointerdown(event: PointerEvent, room: Room, dayIdx: number) {
       newResPopover.value = {
         x: 0,
         y: event.clientY,
-        roomId:   preview.roomId,
-        roomName: preview.roomName,
-        checkIn:  preview.checkIn,
-        checkOut: preview.checkOut,
+        roomId:       preview.roomId,
+        roomName:     preview.roomName,
+        roomTypeId:   preview.roomTypeId,
+        roomTypeName: preview.roomTypeName,
+        checkIn:      preview.checkIn,
+        checkOut:     preview.checkOut,
         showResSub: false,
       }
       requestAnimationFrame(() => {
@@ -1596,7 +1602,7 @@ function closePopover() {
 function selectType(type: 'room-plan' | 'single' | 'group') {
   const p = newResPopover.value
   if (!p) return
-  const payload = { roomId: p.roomId, checkIn: p.checkIn, checkOut: p.checkOut, type }
+  const payload = { roomId: p.roomId, roomName: p.roomName, roomTypeId: p.roomTypeId, roomTypeName: p.roomTypeName, checkIn: p.checkIn, checkOut: p.checkOut, type }
   emit('new-reservation', payload)
   postFlutterMessage('new-reservation', payload)
   closePopover()

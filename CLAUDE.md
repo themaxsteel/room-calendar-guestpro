@@ -63,7 +63,7 @@ Every emit is also forwarded via `postFlutterMessage` for Flutter WebView integr
 | `reservation-clicked` | `{ reservation: Reservation, room: Room }` |
 | `reservation-moved` | `{ id, room_id, arrival_date, departure_date, company_id, from_room_id }` |
 | `date-range-changed` | `{ startDate: string, endDate: string }` |
-| `new-reservation` | `{ roomId, checkIn, checkOut, type: 'room-plan' \| 'single' \| 'group' }` |
+| `new-reservation` | `{ roomId, roomName, roomTypeId, roomTypeName, checkIn, checkOut, type: 'room-plan' \| 'single' \| 'group' }` |
 | `calendar-config-saved` | `Record<string, unknown>` (full cal-config snapshot) |
 | `filter-search` | `{ startDate: string, openAvailability: boolean }` |
 | `infinite-scroll-load` | `{ startDate: string, endDate: string }` (fired when scrolling near the edge) |

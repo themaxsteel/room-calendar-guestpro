@@ -143,6 +143,9 @@ export interface CalendarFilter {
 
 export interface NewReservationPayload {
   roomId: string
+  roomName: string
+  roomTypeId: string
+  roomTypeName: string
   /** ISO YYYY-MM-DD — inclusive check-in */
   checkIn: string
   /** ISO YYYY-MM-DD — exclusive check-out */
@@ -153,6 +156,8 @@ export interface NewReservationPayload {
 export interface NewResDragState {
   roomId: string
   roomName: string
+  roomTypeId: string
+  roomTypeName: string
   startDayIdx: number
   currentDayIdx: number
   startClientX: number
@@ -166,6 +171,8 @@ export interface NewResPopover {
   y: number
   roomId: string
   roomName: string
+  roomTypeId: string
+  roomTypeName: string
   checkIn: string
   checkOut: string
   showResSub: boolean
