@@ -192,9 +192,9 @@
                     bottom: block.totalRows > 1 ? `calc(${(block.totalRows - block.row - 1) / block.totalRows * 100}% + 2px)` : '0',
                   }"
                   @pointerdown.stop.prevent="block.status !== 'ROOM_MAINTENANCE' && onBlockPointerdown($event, block, room)"
-                  @mouseenter="block.status !== 'ROOM_MAINTENANCE' && showTooltip($event, block, room)"
-                  @mousemove="block.status !== 'ROOM_MAINTENANCE' && moveTooltip($event)"
-                  @mouseleave="block.status !== 'ROOM_MAINTENANCE' && hideTooltip()"
+                  @mouseenter="showTooltip($event, block, room)"
+                  @mousemove="moveTooltip($event)"
+                  @mouseleave="hideTooltip()"
                 >
                   <div class="booking-inner">
                     <!-- Room Maintenance -->
@@ -445,67 +445,114 @@
 
   <!-- Tooltip -->
   <Transition name="tt">
-    <div v-if="tooltipTarget && !dragState && filterShowReservationDetail" class="rc-tooltip" :class="statusClass(tooltipTarget.block.status)" :style="tooltipStyle">
-      <div class="tt-header">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <circle cx="12" cy="8" r="4"/>
-          <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-        </svg>
-        <span class="tt-guest">{{ tooltipTarget.block.guestName }}</span>
-      </div>
-      <div class="tt-body">
-        <div class="tt-row">
-          <svg class="tt-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-          <span class="tt-val">Room {{ tooltipTarget.room.name }}</span>
+    <div v-if="tooltipTarget && !dragState && (tooltipTarget.block.status === 'ROOM_MAINTENANCE' || filterShowReservationDetail)" class="rc-tooltip" :class="statusClass(tooltipTarget.block.status)" :style="tooltipStyle">
+      <!-- Maintenance tooltip -->
+      <template v-if="tooltipTarget.block.status === 'ROOM_MAINTENANCE'">
+        <div class="tt-header">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+          </svg>
+          <span class="tt-guest">Room Maintenance</span>
         </div>
-        <div class="tt-row">
-          <svg class="tt-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          <span class="tt-val">Folio #{{ tooltipTarget.block.folioNumber }}</span>
-        </div>
-        <div v-if="tooltipTarget.block.agentName" class="tt-row">
-          <svg class="tt-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          <span class="tt-val">{{ tooltipTarget.block.agentName }}</span>
-        </div>
-        <div class="tt-divider"></div>
-        <div class="tt-stay">
-          <span class="tt-stay-label tt-l">Check-in</span>
-          <span class="tt-stay-nights">{{ nightsBetween(tooltipTarget.block.checkIn, tooltipTarget.block.checkOut) }} {{ nightsBetween(tooltipTarget.block.checkIn, tooltipTarget.block.checkOut) === 1 ? 'night' : 'nights' }}</span>
-          <span class="tt-stay-label tt-r">Check-out</span>
-          <span class="tt-stay-date tt-l">{{ formatDateShort(tooltipTarget.block.checkIn) }}</span>
-          <span class="tt-stay-conn">
-            <i class="tt-stay-dot"></i>
-            <i class="tt-stay-track"></i>
-            <i class="tt-stay-arrow"></i>
-          </span>
-          <span class="tt-stay-date tt-r">{{ formatDateShort(tooltipTarget.block.checkOut) }}</span>
-        </div>
-        <div class="tt-divider"></div>
-        <div class="tt-payment">
-          <div class="tt-bar-track">
-            <div
-              class="tt-bar-fill"
-              :class="{ full: tooltipTarget.block.paidPercent === 100 }"
-              :style="{ width: tooltipTarget.block.paidPercent + '%' }"
-            ></div>
+        <div class="tt-body">
+          <div class="tt-row">
+            <svg class="tt-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+            <span class="tt-val">Room {{ tooltipTarget.room.name }}</span>
           </div>
-          <span class="tt-paid-txt" :class="{ full: tooltipTarget.block.paidPercent === 100 }">
-            Paid {{ tooltipTarget.block.paidPercent }}%
-          </span>
-        </div>
-        <div v-if="tooltipTarget.block.totalBill != null" class="tt-divider"></div>
-        <div v-if="tooltipTarget.block.totalBill != null" class="tt-amounts">
-          <div class="tt-amount-row">
-            <span class="tt-amount-label">Total Bill</span>
-            <span class="tt-amount-val">{{ formatMoney(tooltipTarget.block.totalBill) }}</span>
+          <div class="tt-divider"></div>
+          <div class="tt-stay">
+            <span class="tt-stay-label tt-l">Check-in</span>
+            <span class="tt-stay-nights">{{ nightsBetween(tooltipTarget.block.checkIn, tooltipTarget.block.checkOut) }} {{ nightsBetween(tooltipTarget.block.checkIn, tooltipTarget.block.checkOut) === 1 ? 'night' : 'nights' }}</span>
+            <span class="tt-stay-label tt-r">Check-out</span>
+            <span class="tt-stay-date tt-l">{{ formatDateShort(tooltipTarget.block.checkIn) }}</span>
+            <span class="tt-stay-conn">
+              <i class="tt-stay-dot"></i>
+              <i class="tt-stay-track"></i>
+              <i class="tt-stay-arrow"></i>
+            </span>
+            <span class="tt-stay-date tt-r">{{ formatDateShort(tooltipTarget.block.checkOut) }}</span>
           </div>
-          <div class="tt-amount-row">
-            <span class="tt-amount-label">Outstanding</span>
-            <span class="tt-amount-val" :class="{ 'tt-amount-due': (tooltipTarget.block.outstanding ?? 0) > 0 }">
-              {{ formatMoney(tooltipTarget.block.outstanding ?? 0) }}
+          <div class="tt-divider"></div>
+          <div v-if="tooltipTarget.block.remark" class="tt-row tt-row-remark">
+            <svg class="tt-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;align-self:flex-start;margin-top:1px">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            <span class="tt-val tt-remark">{{ tooltipTarget.block.remark }}</span>
+          </div>
+          <div class="tt-row">
+            <svg class="tt-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+              <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+            <span class="tt-rs-badge">{{ tooltipTarget.room.status }}</span>
+            <span class="tt-val">{{ roomStatusLabel(tooltipTarget.room.status) }}</span>
+          </div>
+        </div>
+      </template>
+      <!-- Regular reservation tooltip -->
+      <template v-else>
+        <div class="tt-header">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="12" cy="8" r="4"/>
+            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+          </svg>
+          <span class="tt-guest">{{ tooltipTarget.block.guestName }}</span>
+        </div>
+        <div class="tt-body">
+          <div class="tt-row">
+            <svg class="tt-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+            <span class="tt-val">Room {{ tooltipTarget.room.name }}</span>
+          </div>
+          <div class="tt-row">
+            <svg class="tt-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span class="tt-val">Folio #{{ tooltipTarget.block.folioNumber }}</span>
+          </div>
+          <div v-if="tooltipTarget.block.agentName" class="tt-row">
+            <svg class="tt-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span class="tt-val">{{ tooltipTarget.block.agentName }}</span>
+          </div>
+          <div class="tt-divider"></div>
+          <div class="tt-stay">
+            <span class="tt-stay-label tt-l">Check-in</span>
+            <span class="tt-stay-nights">{{ nightsBetween(tooltipTarget.block.checkIn, tooltipTarget.block.checkOut) }} {{ nightsBetween(tooltipTarget.block.checkIn, tooltipTarget.block.checkOut) === 1 ? 'night' : 'nights' }}</span>
+            <span class="tt-stay-label tt-r">Check-out</span>
+            <span class="tt-stay-date tt-l">{{ formatDateShort(tooltipTarget.block.checkIn) }}</span>
+            <span class="tt-stay-conn">
+              <i class="tt-stay-dot"></i>
+              <i class="tt-stay-track"></i>
+              <i class="tt-stay-arrow"></i>
+            </span>
+            <span class="tt-stay-date tt-r">{{ formatDateShort(tooltipTarget.block.checkOut) }}</span>
+          </div>
+          <div class="tt-divider"></div>
+          <div class="tt-payment">
+            <div class="tt-bar-track">
+              <div
+                class="tt-bar-fill"
+                :class="{ full: tooltipTarget.block.paidPercent === 100 }"
+                :style="{ width: tooltipTarget.block.paidPercent + '%' }"
+              ></div>
+            </div>
+            <span class="tt-paid-txt" :class="{ full: tooltipTarget.block.paidPercent === 100 }">
+              Paid {{ tooltipTarget.block.paidPercent }}%
             </span>
           </div>
+          <div v-if="tooltipTarget.block.totalBill != null" class="tt-divider"></div>
+          <div v-if="tooltipTarget.block.totalBill != null" class="tt-amounts">
+            <div class="tt-amount-row">
+              <span class="tt-amount-label">Total Bill</span>
+              <span class="tt-amount-val">{{ formatMoney(tooltipTarget.block.totalBill) }}</span>
+            </div>
+            <div class="tt-amount-row">
+              <span class="tt-amount-label">Outstanding</span>
+              <span class="tt-amount-val" :class="{ 'tt-amount-due': (tooltipTarget.block.outstanding ?? 0) > 0 }">
+                {{ formatMoney(tooltipTarget.block.outstanding ?? 0) }}
+              </span>
+            </div>
+          </div>
         </div>
-      </div>
+      </template>
     </div>
   </Transition>
   <!-- Filter Search Modal -->
@@ -1351,6 +1398,14 @@ function statusClass(status: string): string {
   return 'tt-st-' + status.toLowerCase().replace(/_/g, '-')
 }
 
+function roomStatusLabel(s: string): string {
+  const labels: Record<string, string> = {
+    OC: 'Occupied Clean', VC: 'Vacant Clean', OD: 'Occupied Dirty',
+    UL: 'Under Lock', VCI: 'Vacant Clean Inspected', VD: 'Vacant Dirty',
+  }
+  return labels[s] ?? s
+}
+
 const localReservations = ref<Reservation[]>([...props.reservations])
 watch(() => props.reservations, (val) => { localReservations.value = [...val] }, { deep: true })
 
@@ -2178,6 +2233,7 @@ defineExpose({
 .rc-tooltip.tt-st-check-out        { --tt-accent: var(--rc-bg-checkout, #dc2626); }
 .rc-tooltip.tt-st-booked           { --tt-accent: var(--rc-bg-tentative, #475569); }
 .rc-tooltip.tt-st-room-maintenance { --tt-accent: var(--rc-bg-maintenance, #475569); }
+.rc-tooltip.tt-st-room-maintenance .tt-header { background: var(--tt-accent); }
 
 /* Colored header band */
 .tt-header {
@@ -2262,6 +2318,16 @@ defineExpose({
 .tt-amount-label { font-size: 11px; color: #6b7280; }
 .tt-amount-val { font-size: 11.5px; font-weight: 700; color: #111827; white-space: nowrap; }
 .tt-amount-val.tt-amount-due { color: #dc2626; }
+
+.tt-row-remark { align-items: flex-start; }
+.tt-remark { white-space: normal; word-break: break-word; line-height: 1.45; overflow: visible; }
+.tt-rs-badge {
+  flex-shrink: 0;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+  padding: 2px 6px; border-radius: 4px;
+  background: rgba(71, 85, 105, 0.12); color: #475569;
+  white-space: nowrap;
+}
 
 /* Enter/exit animation — fade + slight scale */
 .tt-enter-active { transition: opacity 150ms cubic-bezier(0.23, 1, 0.32, 1), transform 150ms cubic-bezier(0.23, 1, 0.32, 1); }

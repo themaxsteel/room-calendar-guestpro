@@ -143,6 +143,7 @@ export function transformReservations(
       agentName: item.agent_name ?? undefined,
       iconCode: typeof item.icon_code === 'string' ? item.icon_code : undefined,
       agentColor: typeof item.agent_color === 'string' ? item.agent_color : undefined,
+      remark: typeof item.remark === 'string' && item.remark.trim() ? item.remark.trim() : undefined,
       // Keep the raw item so the move event can send the real arrival_date /
       // departure_date instead of the (possibly clamped) timeline dates.
       raw: item,

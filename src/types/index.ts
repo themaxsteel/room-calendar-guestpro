@@ -40,6 +40,8 @@ export interface Reservation {
   iconCode?: string
   /** Agent colour hex used to tint the block icon, e.g. "#e6e600" */
   agentColor?: string
+  /** Maintenance / booking remark from the API (e.g. "Deep cleaning") */
+  remark?: string
   /** Raw original GuestPro reservation item (calendar_reservation_data) this
    *  reservation was built from. Preserved so the move event can send the REAL
    *  arrival_date / departure_date — `checkIn`/`checkOut` are derived from the
