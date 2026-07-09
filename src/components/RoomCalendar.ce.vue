@@ -191,7 +191,7 @@
                     top:    block.totalRows > 1 ? `calc(${block.row / block.totalRows * 100}% + 2px)`                         : '0',
                     bottom: block.totalRows > 1 ? `calc(${(block.totalRows - block.row - 1) / block.totalRows * 100}% + 2px)` : '0',
                   }"
-                  @pointerdown.stop.prevent="block.status !== 'ROOM_MAINTENANCE' && onBlockPointerdown($event, block, room)"
+                  @pointerdown.stop.prevent="block.status === 'ROOM_MAINTENANCE' ? onMaintenanceClick(block, room) : onBlockPointerdown($event, block, room)"
                   @mouseenter="showTooltip($event, block, room)"
                   @mousemove="moveTooltip($event)"
                   @mouseleave="hideTooltip()"
@@ -919,7 +919,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, reactive } from 'vue'
-import type { Room, RoomSection, Reservation, CalendarConfig, CalendarFilter, NewResDragState, NewResPopover } from '../types'
+import type { Room, RoomSection, Reservation, BlockLayout, CalendarConfig, CalendarFilter, NewResDragState, NewResPopover } from '../types'
 import { useSections } from '../composables/useSections'
 import { useCalendarDays } from '../composables/useCalendarDays'
 import { useBlockLayout } from '../composables/useBlockLayout'
@@ -933,6 +933,12 @@ function postFlutterMessage(type: string, payload: unknown) {
   if (typeof window !== 'undefined' && (window as any).Flutter) {
     (window as any).Flutter.postMessage(JSON.stringify({ type, payload }))
   }
+}
+
+function onMaintenanceClick(block: BlockLayout, room: Room) {
+  const payload = { reservation: block, room }
+  emit('reservation-clicked', payload)
+  postFlutterMessage('reservation-clicked', payload)
 }
 
 const props = withDefaults(defineProps<{
@@ -956,6 +962,7 @@ const emit = defineEmits<{
   'calendar-config-saved': [payload: Record<string, unknown>]
   'filter-search': [payload: { startDate: string; openAvailability: boolean }]
   'infinite-scroll-load': [payload: { startDate: string; endDate: string }]
+  'search-bar-changed': [payload: { stringVal: string }]
 }>()
 
 const DAY_COL_W = computed(() => props.config.dayColWidth ?? 100)
@@ -1162,6 +1169,9 @@ function onSearchInput() {
   if (!preSearchStartDate.value && searchQuery.value) {
     preSearchStartDate.value = effectiveConfig.value.startDate
   }
+  const payload = { stringVal: searchQuery.value }
+  emit('search-bar-changed', payload)
+  postFlutterMessage('search-bar-changed', payload)
 }
 
 function isSearchMatch(block: { guestName: string; folioNumber: string }): boolean {
@@ -1236,9 +1246,6 @@ function searchNavJump(results: typeof searchResults.value, idx: number) {
     wrapRef.value.scrollLeft = 0
     scrollLeft.value = 0
   }
-  const payload = { startDate: res.checkIn, endDate: addDays(res.checkIn, effectiveConfig.value.visibleDays - 1) }
-  emit('date-range-changed', payload)
-  postFlutterMessage('date-range-changed', payload)
 }
 
 function searchNavPrev() {
