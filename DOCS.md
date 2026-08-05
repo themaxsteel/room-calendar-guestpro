@@ -291,8 +291,8 @@ cal.addEventListener('reservation-clicked', (e) => {
 | `reservation-clicked` | `{ reservation, room }` | User clicks a booking block |
 | `reservation-moved` | `{ id, room_id, arrival_date, departure_date, company_id, from_room_id, original }` | User drops a block to a new room. `arrival_date`/`departure_date` are the reservation's **real** dates (not the clamped timeline dates); `original` is the full raw reservation item. |
 | `date-range-changed` | `{ startDate, endDate }` | Calendar navigates to a new date range |
-| `new-reservation` | `{ roomId, checkIn, checkOut, type }` | User drags on an empty cell to create a reservation |
-| `filter-search` | `{ startDate, openAvailability }` | User submits the filter/search panel |
+| `new-reservation` | `{ roomId, roomName, roomTypeId, roomTypeName, checkIn, checkOut, type }` | User drags on an empty cell to create a reservation |
+| `filter-search` | `{ startDate, openAvailability, room_type_id, icon_code, room_tag_ids }` | User submits the filter/search panel |
 | `calendar-config-saved` | Full config snapshot (`object`) | User saves visual settings from the config panel (immediate mode only — see [Deferred Save](#deferred-save-configuration)) |
 | `infinite-scroll-load` | `{ startDate, endDate }` | User clicks the **Load More** button after scrolling to the right edge |
 
@@ -327,9 +327,9 @@ cal.addEventListener('infinite-scroll-load', async (e) => {
 
 ```js
 cal.addEventListener('new-reservation', (e) => {
-  const { roomId, checkIn, checkOut, type } = e.detail
+  const { roomId, roomName, roomTypeId, roomTypeName, checkIn, checkOut, type } = e.detail
   // Open your booking form with these pre-filled values
-  openNewReservationForm({ roomId, checkIn, checkOut, type })
+  openNewReservationForm({ roomId, roomName, roomTypeId, roomTypeName, checkIn, checkOut, type })
 })
 ```
 
@@ -341,23 +341,28 @@ cal.addEventListener('new-reservation', (e) => {
 
 By default, clicking **Save Configuration** in the config panel applies the changes to the UI immediately and fires the `calendar-config-saved` event.
 
-If you need to persist the config to your backend **first** and only update the UI on success, register a deferred handler with `setSaveConfigurationHandler`. Your handler receives `(config, event)`; the UI changes **only** when you call `event.commit()`. If you never call it, the calendar keeps its previous settings.
+If you need to persist the config to your backend **first** and only update the UI on success, register a deferred handler with `setSaveConfigurationHandler`. Your handler receives `(config, event)`; the modal **stays open** while your async work runs. Call `event.commit()` to apply the visual changes, and `event.close()` to dismiss the modal.
 
 ```js
 cal.setSaveConfigurationHandler(async (config, event) => {
   console.log(config) // current draft config from the panel
 
-  const ok = await api.saveCalendarConfig(config) // persist to your backend
-  if (ok) {
-    event.commit()    // now apply the changes to the calendar UI
+  try {
+    await api.saveCalendarConfig(config) // persist to your backend
+    event.commit()  // apply the changes to the calendar UI
+    event.close()   // dismiss the modal
+  } catch (err) {
+    // don't commit or close — modal stays open, UI unchanged
+    showErrorToast('Failed to save configuration')
   }
-  // if you don't commit, the UI stays unchanged
 })
 ```
 
+- The modal does **not** auto-close when a handler is registered — you must call `event.close()` manually.
+- Call `event.commit()` and `event.close()` in any order; `commit()` is idempotent (calling it twice has no effect).
 - When a handler is registered, the `calendar-config-saved` event is **not** fired (your handler already has the config).
 - Pass `null` to remove the handler and restore the immediate-update behaviour: `cal.setSaveConfigurationHandler(null)`.
-- Other modules that don't register a handler keep the existing immediate-update model.
+- Other modules that don't register a handler keep the existing immediate-update model (auto-close + `calendar-config-saved` fires).
 
 ---
 
@@ -397,6 +402,8 @@ cal.setCalendarConfiguration({
 
 ## 8. Filter & Display Options
 
+### `setFilter`
+
 `setFilter` applies display overrides at runtime without touching the backend config. All fields are optional.
 
 ```js
@@ -415,6 +422,47 @@ cal.setFilter({
   // Also navigate to a new date range
   startDate: '2026-07-01',
   endDate: '2026-07-30',
+})
+```
+
+### Filter Panel Props
+
+These props populate the filter panel's dropdown/checkbox fields. Pass them as JS arrays directly on the element property. Each list is **optional** — omit or pass `[]` to hide that filter from the panel.
+
+```js
+// Room type single-select (value sent: id)
+cal.room_type_list = [
+  { id: 'b2fef270-...', name: 'Deluxe' },
+  { id: 'be5e01d0-...', name: 'Superior' },
+]
+
+// Reservation icon single-select (value sent: web_code)
+cal.icon_list = [
+  { id: 1, name: 'User',           web_code: 'b-fa b-fa-user' },
+  { id: 2, name: 'Airport Pickup', web_code: 'b-fa b-fa-plane-arrival' },
+]
+
+// Room tag multi-select (value sent: array of id)
+cal.room_tag_list = [
+  { id: '1966c410-...', name: 'RatePilot Demo' },
+]
+```
+
+When the user clicks **Search** in the filter panel, the `filter-search` event fires with the selected values:
+
+```js
+cal.addEventListener('filter-search', (e) => {
+  const {
+    startDate,        // '' if not selected
+    openAvailability, // boolean
+    room_type_id,     // string id or null
+    icon_code,        // web_code string or null
+    room_tag_ids,     // string[] or null
+  } = e.detail
+
+  // Send to your server and reload reservations
+  fetchReservations({ startDate, room_type_id, icon_code, room_tag_ids })
+    .then(data => cal.loadReservation(data))
 })
 ```
 
@@ -441,4 +489,4 @@ cal.setFilter({
 | `CHECK-IN` | Green | Currently checked in |
 | `CHECK-OUT` | Red | Checked out today |
 | `BOOKED` | Slate | Tentative / on-hold |
-| `ROOM_MAINTENANCE` | Slate | Room blocked for maintenance |
+| `ROOM_MAINTENANCE` | Slate | Room blocked for maintenance. When the raw item's `room_status_code` is `"HU"`, the block label and tooltip header show **"House Use"** (house icon) instead of "Room Maintenance" (wrench icon). |

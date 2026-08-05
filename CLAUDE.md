@@ -45,15 +45,24 @@ A Vue 3 Web Component library that exports a single custom element `<room-calend
 - `cssCodeSplit: false` ensures all CSS is inlined into the JS bundle so shadow DOM receives styles.
 - **Never use `@/` path aliases** inside `.ce.vue` files — `vite-plugin-dts` cannot resolve them during type generation. Use relative imports only (e.g. `../types`).
 
-### Props → `sections`, `reservations`, `config`
+### Props → `sections`, `reservations`, `config`, filter lists
 - `sections?: RoomSection[]` — room type groups, each containing an array of `Room` objects. Optional; the GuestPro integration populates this via `setData()` instead.
 - `reservations?: Reservation[]` — each reservation references a `roomId` and has ISO `checkIn` / `checkOut` dates (check-out is exclusive). Optional; `loadReservation()` / `appendReservation()` are the preferred API.
 - `config: CalendarConfig` — `startDate` (ISO), `visibleDays`, optional `dayColWidth` (default **100 px**), `roomColWidth` (default 170 px), optional `companyId` (forwarded in `reservation-moved` events).
+- `room_type_list?: RoomTypeItem[]` — list of room types (`{ id, name }`) shown as a single-select filter in the Filter panel. Omit or pass `[]` to hide the room type filter.
+- `icon_list?: IconItem[]` — list of reservation icons (`{ id, name, web_code }`) shown as a single-select filter. The selected value is the `web_code`, which matches `icon_code` on reservation blocks.
+- `room_tag_list?: RoomTagItem[]` — list of room tags (`{ id, name }`) shown as multi-select checkboxes in the Filter panel. Omit or pass `[]` to hide.
 
 When used as a plain HTML custom element, array/object props arrive as JSON strings — any consumer code must call `JSON.parse` before passing them in.
 
 ### Booking block layout
 Blocks are anchored to the **first visible day column** (`idx === 0`) of each room row using `position: absolute`. `left` and `width` are computed from `(checkIn - startDate) / MS_PER_DAY * DAY_COL_W`. The `.booking-block` is a flexbox whose `.booking-inner` child uses `position: sticky; left: calc(var(--rc-room-col-w) + 8px)` so the guest name stays visible (pinned just right of the sticky room column) as the block scrolls behind it — the browser auto-clamps the label to the block's own bounds, so it disappears with the block once fully scrolled past. This is pure CSS; `onScroll` no longer transforms blocks per-frame (it only tracks `scrollLeft` and the Load-More edge).
+
+**Block label variants for `ROOM_MAINTENANCE` status:**
+- `raw.room_status_code === 'HU'` → house icon + **"House Use"**
+- All other maintenance codes → wrench icon + **"Room Maintenance"**
+
+The maintenance tooltip shows "From"/"To" (not "Check-in"/"Check-out") for the date range, and reads room status (`room_status_name`, `room_status_code`) and remark (`room_status_remark`) from `reservation.raw` rather than derived fields.
 
 ### Emits (native `CustomEvent`, payload in `event.detail`)
 Every emit is also forwarded via `postFlutterMessage` for Flutter WebView integration.
@@ -65,7 +74,7 @@ Every emit is also forwarded via `postFlutterMessage` for Flutter WebView integr
 | `date-range-changed` | `{ startDate: string, endDate: string }` |
 | `new-reservation` | `{ roomId, roomName, roomTypeId, roomTypeName, checkIn, checkOut, type: 'room-plan' \| 'single' \| 'group' }` |
 | `calendar-config-saved` | `Record<string, unknown>` (full cal-config snapshot) |
-| `filter-search` | `{ startDate: string, openAvailability: boolean }` |
+| `filter-search` | `{ startDate: string, openAvailability: boolean, room_type_id: string \| null, icon_code: string \| null, room_tag_ids: string[] \| null }` |
 | `infinite-scroll-load` | `{ startDate: string, endDate: string }` (fired when scrolling near the edge) |
 
 ### Public API (`defineExpose`)
@@ -90,6 +99,7 @@ Every emit is also forwarded via `postFlutterMessage` for Flutter WebView integr
 
 **Calendar configuration**
 - `setCalendarConfiguration(cfg)` — sets visual settings (colors, column widths, block label type, unallocated row visibility, etc.) using GuestPro backend field names (`calender_label`, `background_color_reservation`, etc.).
+- `setSaveConfigurationHandler(fn)` — registers a deferred-commit handler called when the user clicks Save in the Calendar Configuration modal. Signature: `(config: Record<string, unknown>, event: { commit(): void; close(): void }) => void`. When a handler is registered the modal **does not auto-close**; the host must call `event.close()` manually (e.g. after a successful API save). Call `event.commit()` to apply the visual changes. Without a handler the modal auto-closes and fires `calendar-config-saved` immediately (immediate mode).
 
 ## Language Rules
 

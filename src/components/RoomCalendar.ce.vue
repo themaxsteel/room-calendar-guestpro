@@ -197,14 +197,24 @@
                   @mouseleave="hideTooltip()"
                 >
                   <div class="booking-inner">
-                    <!-- Room Maintenance -->
+                    <!-- Room Maintenance / House Use -->
                     <template v-if="block.status === 'ROOM_MAINTENANCE'">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-                      </svg>
-                      <div class="b-texts">
-                        <span class="b-name">Room Maintenance</span>
-                      </div>
+                      <template v-if="block.raw?.room_status_code === 'HU'">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+                        </svg>
+                        <div class="b-texts">
+                          <span class="b-name">House Use</span>
+                        </div>
+                      </template>
+                      <template v-else>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                        </svg>
+                        <div class="b-texts">
+                          <span class="b-name">Room Maintenance</span>
+                        </div>
+                      </template>
                     </template>
                     <!-- Booked -->
                     <template v-else-if="block.status === 'BOOKED'">
@@ -449,10 +459,18 @@
       <!-- Maintenance tooltip -->
       <template v-if="tooltipTarget.block.status === 'ROOM_MAINTENANCE'">
         <div class="tt-header">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-          </svg>
-          <span class="tt-guest">Room Maintenance</span>
+          <template v-if="tooltipTarget.block.raw?.room_status_code === 'HU'">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+            <span class="tt-guest">House Use</span>
+          </template>
+          <template v-else>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+            </svg>
+            <span class="tt-guest">Room Maintenance</span>
+          </template>
         </div>
         <div class="tt-body">
           <div class="tt-row">
@@ -461,9 +479,9 @@
           </div>
           <div class="tt-divider"></div>
           <div class="tt-stay">
-            <span class="tt-stay-label tt-l">Check-in</span>
+            <span class="tt-stay-label tt-l">From</span>
             <span class="tt-stay-nights">{{ nightsBetween(tooltipTarget.block.checkIn, tooltipTarget.block.checkOut) }} {{ nightsBetween(tooltipTarget.block.checkIn, tooltipTarget.block.checkOut) === 1 ? 'night' : 'nights' }}</span>
-            <span class="tt-stay-label tt-r">Check-out</span>
+            <span class="tt-stay-label tt-r">To</span>
             <span class="tt-stay-date tt-l">{{ formatDateShort(tooltipTarget.block.checkIn) }}</span>
             <span class="tt-stay-conn">
               <i class="tt-stay-dot"></i>
@@ -473,20 +491,20 @@
             <span class="tt-stay-date tt-r">{{ formatDateShort(tooltipTarget.block.checkOut) }}</span>
           </div>
           <div class="tt-divider"></div>
-          <div v-if="tooltipTarget.block.remark" class="tt-row tt-row-remark">
-            <svg class="tt-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;align-self:flex-start;margin-top:1px">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-            <span class="tt-val tt-remark">{{ tooltipTarget.block.remark }}</span>
-          </div>
-          <div class="tt-row">
+          <div v-if="tooltipTarget.block.raw?.room_status_name" class="tt-row">
             <svg class="tt-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
               <polyline points="9 22 9 12 15 12 15 22"/>
             </svg>
-            <span class="tt-rs-badge">{{ tooltipTarget.room.status }}</span>
-            <span class="tt-val">{{ roomStatusLabel(tooltipTarget.room.status) }}</span>
+            <span class="tt-rs-badge">{{ tooltipTarget.block.raw?.room_status_code }}</span>
+            <span class="tt-val">{{ tooltipTarget.block.raw?.room_status_name }}</span>
+          </div>
+          <div v-if="tooltipTarget.block.raw?.room_status_remark" class="tt-row tt-row-remark">
+            <svg class="tt-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;align-self:flex-start;margin-top:1px">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            <span class="tt-val tt-remark">{{ tooltipTarget.block.raw?.room_status_remark }}</span>
           </div>
         </div>
       </template>
@@ -637,6 +655,35 @@
             <button class="rc-cfg-toggle" :class="{ 'is-on': filterSearch.openAvailability }" @click="filterSearch.openAvailability = !filterSearch.openAvailability">
               <span class="rc-cfg-toggle-thumb"></span>
             </button>
+          </div>
+
+          <!-- Room Type -->
+          <div v-if="props.room_type_list.length" class="rc-fs-filter-row">
+            <label class="rc-fs-filter-label">Room Type</label>
+            <select class="rc-fs-select" v-model="filterSearch.roomTypeId">
+              <option value="">All</option>
+              <option v-for="rt in props.room_type_list" :key="rt.id" :value="rt.id">{{ rt.name }}</option>
+            </select>
+          </div>
+
+          <!-- Icon -->
+          <div v-if="props.icon_list.length" class="rc-fs-filter-row">
+            <label class="rc-fs-filter-label">Icon</label>
+            <select class="rc-fs-select" v-model="filterSearch.iconCode">
+              <option value="">All</option>
+              <option v-for="ic in props.icon_list" :key="ic.id" :value="ic.web_code">{{ ic.name }}</option>
+            </select>
+          </div>
+
+          <!-- Room Tags -->
+          <div v-if="props.room_tag_list.length" class="rc-fs-filter-row rc-fs-filter-row--tags">
+            <div class="rc-fs-filter-label">Room Tags</div>
+            <div class="rc-fs-tags-list">
+              <label v-for="tag in props.room_tag_list" :key="tag.id" class="rc-fs-tag-item">
+                <input type="checkbox" :value="tag.id" v-model="filterSearch.roomTagIds" class="rc-fs-tag-check">
+                <span class="rc-fs-tag-name">{{ tag.name }}</span>
+              </label>
+            </div>
           </div>
 
         </div>
@@ -919,7 +966,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, reactive } from 'vue'
-import type { Room, RoomSection, Reservation, BlockLayout, CalendarConfig, CalendarFilter, NewResDragState, NewResPopover } from '../types'
+import type { Room, RoomSection, Reservation, BlockLayout, CalendarConfig, CalendarFilter, NewResDragState, NewResPopover, RoomTypeItem, IconItem, RoomTagItem } from '../types'
 import { useSections } from '../composables/useSections'
 import { useCalendarDays } from '../composables/useCalendarDays'
 import { useBlockLayout } from '../composables/useBlockLayout'
@@ -945,6 +992,9 @@ const props = withDefaults(defineProps<{
   sections?: RoomSection[]
   reservations?: Reservation[]
   config: CalendarConfig
+  room_type_list?: RoomTypeItem[]
+  icon_list?: IconItem[]
+  room_tag_list?: RoomTagItem[]
 }>(), {
   sections: () => [],
   reservations: () => [],
@@ -952,6 +1002,9 @@ const props = withDefaults(defineProps<{
     startDate: new Date().toISOString().slice(0, 10),
     visibleDays: 14,
   }),
+  room_type_list: () => [],
+  icon_list:      () => [],
+  room_tag_list:  () => [],
 })
 
 const emit = defineEmits<{
@@ -960,7 +1013,7 @@ const emit = defineEmits<{
   'date-range-changed': [payload: { startDate: string; endDate: string }]
   'new-reservation':    [payload: { roomId: string; roomName: string; roomTypeId: string; roomTypeName: string; checkIn: string; checkOut: string; type: 'room-plan' | 'single' | 'group' }]
   'calendar-config-saved': [payload: Record<string, unknown>]
-  'filter-search': [payload: { startDate: string; openAvailability: boolean }]
+  'filter-search': [payload: { startDate: string; openAvailability: boolean; room_type_id: string | null; icon_code: string | null; room_tag_ids: string[] | null }]
   'infinite-scroll-load': [payload: { startDate: string; endDate: string }]
   'search-bar-changed': [payload: { stringVal: string }]
 }>()
@@ -1099,15 +1152,15 @@ function applyCalConfig() {
 // config to the host and only applies to the UI when event.commit() is called
 // (e.g. after the host's persist API succeeds). When absent, the existing
 // immediate behaviour runs (apply to UI + emit calendar-config-saved).
-type SaveConfigEvent = { commit: () => void }
+type SaveConfigEvent = { commit: () => void; close: () => void }
 const saveConfigHandler = ref<((config: Record<string, unknown>, event: SaveConfigEvent) => void) | null>(null)
 
 function saveCalConfig() {
   const cfg = { ...calConfig }
-  calConfigOpen.value = false
 
   if (saveConfigHandler.value) {
-    // Deferred mode — UI changes wait for the host to call event.commit().
+    // Deferred mode — modal stays open; host calls event.commit() to apply and
+    // event.close() to dismiss the dialog when ready (e.g. after API success).
     let committed = false
     const event: SaveConfigEvent = {
       commit() {
@@ -1116,12 +1169,16 @@ function saveCalConfig() {
         applyCalConfig()
         commitColors()
       },
+      close() {
+        calConfigOpen.value = false
+      },
     }
     saveConfigHandler.value(cfg, event)
     return
   }
 
   // Immediate mode (existing behaviour for other modules).
+  calConfigOpen.value = false
   applyCalConfig()
   commitColors()
   emit('calendar-config-saved', cfg)
@@ -1405,13 +1462,6 @@ function statusClass(status: string): string {
   return 'tt-st-' + status.toLowerCase().replace(/_/g, '-')
 }
 
-function roomStatusLabel(s: string): string {
-  const labels: Record<string, string> = {
-    OC: 'Occupied Clean', VC: 'Vacant Clean', OD: 'Occupied Dirty',
-    UL: 'Under Lock', VCI: 'Vacant Clean Inspected', VD: 'Vacant Dirty',
-  }
-  return labels[s] ?? s
-}
 
 const localReservations = ref<Reservation[]>([...props.reservations])
 watch(() => props.reservations, (val) => { localReservations.value = [...val] }, { deep: true })
@@ -1677,6 +1727,9 @@ const filterSearchActive = ref(false)
 const filterSearch = reactive({
   startDate:        '',
   openAvailability: false,
+  roomTypeId:       '',
+  iconCode:         '',
+  roomTagIds:       [] as string[],
 })
 
 // Date picker state
@@ -1734,20 +1787,30 @@ function openFilterSearch() {
 function resetFilterSearch() {
   filterSearch.startDate        = ''
   filterSearch.openAvailability = false
+  filterSearch.roomTypeId       = ''
+  filterSearch.iconCode         = ''
+  filterSearch.roomTagIds       = []
   filterStartDateOverride.value   = null
   filterVisibleDaysOverride.value = null
   infiniteExtraDays.value         = 0
   filterSearchActive.value = false
-  emit('filter-search', { startDate: '', openAvailability: false })
-  postFlutterMessage('filter-search', { startDate: '', openAvailability: false })
+  const emptyPayload = { startDate: '', openAvailability: false, room_type_id: null, icon_code: null, room_tag_ids: null }
+  emit('filter-search', emptyPayload)
+  postFlutterMessage('filter-search', emptyPayload)
   filterSearchOpen.value = false
 }
 
 function submitFilterSearch() {
-  filterSearchActive.value = !!(filterSearch.startDate || filterSearch.openAvailability)
+  filterSearchActive.value = !!(
+    filterSearch.startDate || filterSearch.openAvailability ||
+    filterSearch.roomTypeId || filterSearch.iconCode || filterSearch.roomTagIds.length
+  )
   const payload = {
     startDate:        filterSearch.startDate,
     openAvailability: filterSearch.openAvailability,
+    room_type_id:     filterSearch.roomTypeId  || null,
+    icon_code:        filterSearch.iconCode    || null,
+    room_tag_ids:     filterSearch.roomTagIds.length ? [...filterSearch.roomTagIds] : null,
   }
   emit('filter-search', payload)
   postFlutterMessage('filter-search', payload)
@@ -3344,6 +3407,31 @@ defineExpose({
 }
 .rc-fs-avail-label { font-size: 13px; font-weight: 600; color: #374151; }
 .rc-fs-avail-sub   { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+
+/* Filter rows (room type, icon, room tags) */
+.rc-fs-filter-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 20px;
+  border-top: 1px solid #f3f4f6;
+}
+.rc-fs-filter-row--tags { align-items: flex-start; }
+.rc-fs-filter-label { font-size: 13px; font-weight: 600; color: #374151; flex-shrink: 0; }
+.rc-fs-select {
+  flex: 1; max-width: 180px;
+  font-size: 12px; color: #374151; background: #f9fafb;
+  border: 1px solid #e5e7eb; border-radius: 8px;
+  padding: 6px 10px; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239ca3af' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center;
+  padding-right: 26px; cursor: pointer;
+}
+.rc-fs-select:focus { outline: none; border-color: #76b51b; }
+.rc-fs-tags-list { display: flex; flex-direction: column; gap: 6px; }
+.rc-fs-tag-item {
+  display: flex; align-items: center; gap: 7px; cursor: pointer;
+}
+.rc-fs-tag-check { accent-color: #76b51b; width: 14px; height: 14px; cursor: pointer; }
+.rc-fs-tag-name { font-size: 12px; color: #374151; }
 
 /* Search button */
 .rc-fs-search-btn { display: flex; align-items: center; gap: 6px; background: #76b51b; }

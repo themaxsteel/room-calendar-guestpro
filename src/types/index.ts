@@ -179,3 +179,7 @@ export interface NewResPopover {
   checkOut: string
   showResSub: boolean
 }
+
+export interface RoomTypeItem { id: string; name: string }
+export interface IconItem     { id: string | number; name: string; web_code: string }
+export interface RoomTagItem  { id: string; name: string }
